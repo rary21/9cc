@@ -11,7 +11,7 @@ jobs:
     - uses: actions/checkout@v1
     - name: make
       run: make
-    - name: ll
-      run: ls -l
+    - name: chmod
+      run: chmod +x test.sh
     - name: make test
       run: make test
