@@ -16,7 +16,7 @@ try() {
   fi
 }
 
-try 0 0
-try 42 42
+try 0 "20+5-25"
+try 24 "12-24+36"
 
 echo OK
