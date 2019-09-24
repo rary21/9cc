@@ -12,6 +12,6 @@ jobs:
     - name: make
       run: make
     - name: ll
-      run: ll
+      run: ls -l
     - name: make test
       run: make test
