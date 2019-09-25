@@ -25,5 +25,8 @@ try 6 "52/ 26 *  3"
 # all arithmetic calculation
 try 21 "78 - 34 * 2 + 22/2"
 try 43 "21*2 + 24/6 - 3"
+# with parenthesese
+try 0 "(2+2) * 4 / 8 - 2"
+try 15 "(4 * 2 - 8) / 2 + 3 * (2 + 3)"
 
 echo OK

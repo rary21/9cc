@@ -7,15 +7,20 @@
 
 #ifdef DEBUG
 #define debug_print(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
+#define debug_put(str) fprintf(stderr, str)
 #else
 #define debug_print(fmt, ...)
+#define debug_put(str)
 #endif
 
 // kind of token
 typedef enum {
   TK_OP,          // operations
+  TK_LPAR,        // left parenthesis "("
+  TK_RPAR,        // right parenthesis ")"
   TK_NUM,         // digits
   TK_EOF,         // End Of File
+  NUM_TOKEN_KIND,
 } TokenKind;
 typedef struct Token Token;
 // Token
@@ -33,9 +38,16 @@ typedef enum {
   ND_MUL,         // multiplication
   ND_DIV,         // division
   ND_NUM,         // digits
+  ND_LPAR,        // left parenthesis "("
+  ND_RPAR,        // right parenthesis ")"
+  NUM_NODE_KIND,
 } NodeKind;
 
-const char* NODE_KIND_STR[] = {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM"};
+const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
+  {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EOF"};
+
+const char* NODE_KIND_STR[NUM_NODE_KIND] =
+  {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR"};
 
 typedef struct Node Node;
 // Node
@@ -52,6 +64,7 @@ Node* mul();
 Node* primary();
 
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
+  debug_print("** new_node : %s\n", NODE_KIND_STR[kind]);
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
   node->val  = 999999;
@@ -61,6 +74,7 @@ Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
 }
 
 Node* new_node_number(long int val) {
+  debug_print("** new_node_number : %ld\n", val);
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_NUM;
   node->val  = val;
@@ -83,7 +97,8 @@ void error(char *fmt, ...) {
 // go to next token and return true if current token is TK_OP and matches with op
 // otherwise, return false
 bool consume(const char op) {
-  if (token->kind != TK_OP || token->str[0] != op)
+  if ((token->kind != TK_OP && token->kind != TK_LPAR && token->kind != TK_RPAR)
+      || token->str[0] != op)
     return false;
   // next token
   debug_print("op: %c  token->kind: %d token->str[0]: %c\n", op, token->kind, token->str[0]);
@@ -94,8 +109,9 @@ bool consume(const char op) {
 // go to next token and return true if current token is TK_OP and matches with op
 // otherwise, throw error and exit application
 void expect(const char op) {
-  if (token->kind != TK_OP || token->str[0] != op)
-    error("expect error");
+  if ((token->kind != TK_OP && token->kind != TK_LPAR && token->kind != TK_RPAR)
+      || token->str[0] != op)
+    error("%c expected, but got %c", op, token->str[0]);
   // next token
   token = token->next;
 }
@@ -104,7 +120,7 @@ void expect(const char op) {
 // otherwise, throw error and exit application
 int expect_number() {
   if (token->kind != TK_NUM)
-    error("expect error");
+    error("number expected, but got %s", TOKEN_KIND_STR[token->kind]);
   // next token
   int value = token->val;
   token = token->next;
@@ -180,6 +196,16 @@ Token* tokenize(char *p) {
       p++;
       continue;
     }
+    if (*p == '(') {
+      cur = new_token(cur, TK_LPAR, p);
+      p++;
+      continue;
+    }
+    if (*p == ')') {
+      cur = new_token(cur, TK_RPAR, p);
+      p++;
+      continue;
+    }
     if (isdigit(*p)) {
       cur = new_token(cur, TK_NUM, p);
       cur->val  = strtol(p, &p, 10);
@@ -202,6 +228,7 @@ bool is_eof(Token* tkn) {
 // mul     = primary ("*" primary | "/" primary)*
 // primary = num | "(" expr ")"
 Node* expr() {
+  debug_put("expr\n");
   Node *lhs = mul();
   Node *node = lhs, *rhs;
 
@@ -221,6 +248,7 @@ Node* expr() {
 
 // mul     = primary ("*" primary | "/" primary)*
 Node* mul() {
+  debug_put("mul\n");
   Node *lhs = primary();
   Node *node = lhs, *rhs;
 
@@ -241,11 +269,20 @@ Node* mul() {
 
 // primary = num | "(" expr ")"
 Node* primary() {
-  // TODO: support "(" and ")"
-  return new_node_number(expect_number());
+  debug_put("primary\n");
+  // if '(' is found, 
+  if (consume('(')) {
+    Node *node = expr();
+    expect(')');   // ')' should be here
+    return node;
+  } else {
+    return new_node_number(expect_number());
+  }
 }
 
 void gen(Node *node) {
+  if (node == NULL)
+    return ;
   if (node->kind == ND_NUM) {
     printf("  push %ld\n", node->val);
     return;
