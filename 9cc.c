@@ -286,29 +286,12 @@ int main(int argc, char **argv) {
   printf("main:\n");
   char* p = argv[1];
   token = tokenize(p);
-  print_token_recursive(token);
+  // print_token_recursive(token);
 
   Node* node = expr();
-  print_node_recursive(node);
+  // print_node_recursive(node);
 
   gen(node);
-  // long int val = expect_number();
-  // printf("  mov rax, %ld\n", val);
-  // while (token->kind != TK_EOF) {
-  //   if (consume('+')) {
-  //     val = expect_number();
-  //     printf("  add rax, %ld\n", val);
-  //     continue;
-  //   }
-  //   if (consume('-')) {
-  //     val = expect_number();
-  //     printf("  sub rax, %ld\n", val);
-  //     continue;
-  //   }
-  //   if (is_eof(token))
-  //     break;
-  //   error("error in main loop");
-  // }
 
   printf("  pop rax\n");
   printf("  ret\n");
