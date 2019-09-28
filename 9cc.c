@@ -61,6 +61,7 @@ struct Node {
 
 Node* expr();
 Node* mul();
+Node* unary();
 Node* primary();
 
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
@@ -225,7 +226,8 @@ bool is_eof(Token* tkn) {
 }
 
 // expr    = mul ("+" mul | "-" mul)*
-// mul     = primary ("*" primary | "/" primary)*
+// mul     = unary ("*" unary | "/" unary)*
+// unary   = ("+" | "-") primary
 // primary = num | "(" expr ")"
 Node* expr() {
   debug_put("expr\n");
@@ -243,28 +245,37 @@ Node* expr() {
       return node;
     }
   }
-  return lhs;
 }
 
-// mul     = primary ("*" primary | "/" primary)*
+// mul     = unary ("*" unary | "/" unary)*
 Node* mul() {
   debug_put("mul\n");
-  Node *lhs = primary();
+  Node *lhs = unary();
   Node *node = lhs, *rhs;
 
   while (1) {
     if (consume('*')) {
-      rhs = primary();
+      rhs = unary();
       node = new_node(ND_MUL, node, rhs);
     } else if (consume('/')) {
-      rhs = primary();
+      rhs = unary();
       node = new_node(ND_DIV, node, rhs);
     } else {
       return node;
     }
   }
+}
 
-  return lhs;
+// unary   = ("+" | "-") primary
+Node* unary() {
+  debug_put("unary\n");
+  
+  if (consume('+'))
+    return primary();
+  if (consume('-'))
+    return new_node(ND_SUB, new_node_number(0), primary());
+
+  return primary();
 }
 
 // primary = num | "(" expr ")"
