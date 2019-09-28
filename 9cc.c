@@ -19,9 +19,31 @@ typedef enum {
   TK_LPAR,        // left parenthesis "("
   TK_RPAR,        // right parenthesis ")"
   TK_NUM,         // digits
+  TK_EQ,          // "=="
+  TK_NE,          // "!="
+  TK_LT,          // "<
+  TK_LE,          // "<=
+  TK_GT,          // ">
+  TK_GE,          // ">=
   TK_EOF,         // End Of File
   NUM_TOKEN_KIND,
 } TokenKind;
+
+unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
+1,
+1,
+1,
+1,
+2,
+2,
+1,
+2,
+1,
+2,
+1,
+};
+
+
 typedef struct Token Token;
 // Token
 struct Token {
@@ -29,6 +51,7 @@ struct Token {
   Token *next;    // pointer to next token
   int val;        // value when kind is TK_NUM
   char *str;      // string of token
+  int len;        // length of *str
 };
 
 // kind of Node
@@ -44,7 +67,7 @@ typedef enum {
 } NodeKind;
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
-  {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EOF"};
+  {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR"};
@@ -174,15 +197,67 @@ void print_node_recursive(Node *node) {
 }
 
 // append new token to cur and return pointer to new token
-Token* new_token(Token *cur, TokenKind kind, char *str) {
+Token* new_token(Token *cur, TokenKind kind, char **str, int len) {
   Token *next = (Token*)calloc(1, sizeof(Token));
   cur->next = next;
   next->kind = kind;
-  next->str  = str;
+  next->str  = *str;
+  next->len = len;
+  if (kind == TK_NUM)
+    next->val  = strtol(*str, str, 10);
+  else
+    *str = *str + len;
   return next;
 }
 
+bool get_kind(char *p, TokenKind *kind) {
+  if (isoperation(*p)) {
+    *kind = TK_OP;
+    return true;
+  }
+  if (*p == '(') {
+    *kind = TK_LPAR;
+    return true;
+  }
+  if (*p == ')') {
+    *kind = TK_RPAR;
+    return true;
+  }
+  if (isdigit(*p)) {
+    *kind = TK_NUM;
+    return true;
+  }
+  if (strncmp(p, "==", 2) == 0) {
+    *kind = TK_EQ;
+    return true;
+  }
+  if (strncmp(p, "!=", 2) == 0) {
+    *kind = TK_NE;
+    return true;
+  }
+  if (strncmp(p, "<=", 2) == 0) {
+    *kind = TK_LE;
+    return true;
+  }
+  if (strncmp(p, ">=", 2) == 0) {
+    *kind = TK_GE;
+    return true;
+  }
+  if (*p == '<') {
+    *kind = TK_LT;
+    return true;
+  }
+  if (*p == '>') {
+    *kind = TK_GT;
+    return true;
+  }
+
+  return false;
+}
+
 Token* tokenize(char *p) {
+  int len;
+  TokenKind kind;
   Token head;
   Token *cur = &head;
 
@@ -192,30 +267,15 @@ Token* tokenize(char *p) {
       p++;
       continue;
     }
-    if (isoperation(*p)) {
-      cur = new_token(cur, TK_OP, p);
-      p++;
-      continue;
-    }
-    if (*p == '(') {
-      cur = new_token(cur, TK_LPAR, p);
-      p++;
-      continue;
-    }
-    if (*p == ')') {
-      cur = new_token(cur, TK_RPAR, p);
-      p++;
-      continue;
-    }
-    if (isdigit(*p)) {
-      cur = new_token(cur, TK_NUM, p);
-      cur->val  = strtol(p, &p, 10);
+    if (get_kind(p, &kind)) {
+      len = TK_LEN_OF_KIND[kind];
+      cur = new_token(cur, kind, &p, len);
       continue;
     }
     error("cannot tokenize");
   }
 
-  cur = new_token(cur, TK_EOF, p);
+  cur = new_token(cur, TK_EOF, &p, 1);
 
   return head.next;
 }
