@@ -1,92 +1,24 @@
-#include <ctype.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#ifdef DEBUG
-#define debug_print(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
-#define debug_put(str) fprintf(stderr, str)
-#else
-#define debug_print(fmt, ...)
-#define debug_put(str)
-#endif
-
-// kind of token
-typedef enum {
-  TK_OP,          // operations
-  TK_LPAR,        // left parenthesis "("
-  TK_RPAR,        // right parenthesis ")"
-  TK_NUM,         // digits
-  TK_EQ,          // "=="
-  TK_NE,          // "!="
-  TK_LT,          // "<
-  TK_LE,          // "<=
-  TK_GT,          // ">
-  TK_GE,          // ">=
-  TK_EOF,         // End Of File
-  NUM_TOKEN_KIND,
-} TokenKind;
+#include "9cc.h"
 
 unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
-1,
-1,
-1,
-1,
-2,
-2,
-1,
-2,
-1,
-2,
-1,
+1,        // operations
+1,        // left parenthesis "("
+1,        // right parenthesis ")"
+1,        // digits (must be 1 since this will be used in strncmp)
+2,        // "=="
+2,        // "!="
+1,        // "<
+2,        // "<=
+1,        // ">
+2,        // ">=
+1,        // End Of File
 };
-
-
-typedef struct Token Token;
-// Token
-struct Token {
-  TokenKind kind; // kind of token
-  Token *next;    // pointer to next token
-  int val;        // value when kind is TK_NUM
-  char *str;      // string of token
-  int len;        // length of *str
-};
-
-// kind of Node
-typedef enum {
-  ND_ADD,         // addition
-  ND_SUB,         // subtraction
-  ND_MUL,         // multiplication
-  ND_DIV,         // division
-  ND_NUM,         // digits
-  ND_LPAR,        // left parenthesis "("
-  ND_RPAR,        // right parenthesis ")"
-  ND_EQ,          // "=="
-  ND_NE,          // "!="
-  ND_LT,          // "<
-  ND_LE,          // "<=
-  ND_GT,          // ">
-  ND_GE,          // ">=
-  NUM_NODE_KIND,
-} NodeKind;
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
   {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR", "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE"};
-
-typedef struct Node Node;
-// Node
-struct Node {
-  NodeKind kind; // kind of node
-  Node *lhs;     // left leaf
-  Node *rhs;     // right leaf
-  int val;  // value when kind is ND_NUM
-};
-
 
 Node* expr();
 Node* equality();
@@ -96,54 +28,23 @@ Node* mul();
 Node* unary();
 Node* primary();
 
-Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
-  debug_print("** new_node : %s\n", NODE_KIND_STR[kind]);
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = kind;
-  node->val  = 999999;
-  node->lhs  = lhs;
-  node->rhs  = rhs;
-  return node;
-}
-
-Node* new_node_number(int val) {
-  debug_print("** new_node_number : %d\n", val);
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_NUM;
-  node->val  = val;
-  node->rhs  = NULL;
-  node->lhs  = NULL;
-  return node;
-}
-
-// current token
-Token *token;
-
-void error(char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
-  exit(1);
-}
-
 // go to next token and return true if current token is TK_OP and matches with op
 // otherwise, return false
 bool consume(const char *str) {
-  if (strncmp(str, token->str, token->len))
+  if (strncmp(str, token->str, token->len) != 0)
     return false;
   // next token
-  debug_print("op: %c  token->kind: %d token->str[0]: %c\n", op, token->kind, token->str[0]);
+  debug_print("consuming op: %c  token->kind: %d token->str[0]: %c length: %d\n",
+               str[0], token->kind, token->str[0], token->len);
   token = token->next;
   return true;
 }
 
 // go to next token and return true if current token is TK_OP and matches with op
 // otherwise, throw error and exit application
-void expect(const char op) {
-  if ((token->kind != TK_OP && token->kind != TK_LPAR && token->kind != TK_RPAR)
-      || token->str[0] != op)
-    error("%c expected, but got %c", op, token->str[0]);
+void expect(const char *str) {
+  if (strncmp(str, token->str, token->len) != 0)
+    error("%c expected, but got %c", str[0], token->str[0]);
   // next token
   token = token->next;
 }
@@ -179,31 +80,6 @@ bool isoperation(const char c) {
   return false;
 }
 
-void print_token(Token *tkn) {
-  fprintf(stderr, "kind: %d value: %d str[0]: %c\n", tkn->kind, tkn->val, tkn->str[0]);
-}
-
-void print_token_recursive(Token *tkn) {
-  while (tkn->kind != TK_EOF) {
-    print_token(tkn);
-    tkn = tkn->next;
-  }
-}
-
-void print_node(Node *node) {
-  fprintf(stderr, "kind: %s value: %d\n", NODE_KIND_STR[node->kind], node->val);
-}
-
-void print_node_recursive(Node *node) {
-  if (node->lhs != NULL) {
-    print_node_recursive(node->lhs);
-  }
-  print_node(node);
-  if (node->rhs != NULL) {
-    print_node_recursive(node->rhs);
-  }
-}
-
 // append new token to cur and return pointer to new token
 Token* new_token(Token *cur, TokenKind kind, char **str, int len) {
   Token *next = (Token*)calloc(1, sizeof(Token));
@@ -216,6 +92,26 @@ Token* new_token(Token *cur, TokenKind kind, char **str, int len) {
   else
     *str = *str + len;
   return next;
+}
+
+Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
+  debug_print("** new_node : %s\n", NODE_KIND_STR[kind]);
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = kind;
+  node->val  = 999999;
+  node->lhs  = lhs;
+  node->rhs  = rhs;
+  return node;
+}
+
+Node* new_node_number(int val) {
+  debug_print("** new_node_number : %d\n", val);
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_NUM;
+  node->val  = val;
+  node->rhs  = NULL;
+  node->lhs  = NULL;
+  return node;
 }
 
 bool get_kind(char *p, TokenKind *kind) {
@@ -407,94 +303,9 @@ Node* primary() {
   // if '(' is found, 
   if (consume("(")) {
     Node *node = expr();
-    expect(')');   // ')' should be here
+    expect(")");   // ')' should be here
     return node;
   } else {
     return new_node_number(expect_number());
   }
-}
-
-void gen(Node *node) {
-  if (node == NULL)
-    return ;
-  if (node->kind == ND_NUM) {
-    printf("  push %d\n", node->val);
-    return;
-  }
-  gen(node->lhs);
-  gen(node->rhs);
-
-  printf("  pop rdi\n");
-  printf("  pop rax\n");
-  switch (node->kind) {
-    case ND_ADD:
-      printf("  add rax, rdi\n");
-      break;
-    case ND_SUB:
-      printf("  sub rax, rdi\n");
-      break;
-    case ND_MUL:
-      printf("  imul rax, rdi\n");
-      break;
-    case ND_DIV:
-      printf("  cqo\n");
-      printf("  idiv rdi\n");
-      break;
-    case ND_EQ:
-      printf("  cmp rax, rdi\n");
-      printf("  sete al\n");
-      printf("  movzx rax, al\n");
-      break;
-    case ND_NE:
-      printf("  cmp rax, rdi\n");
-      printf("  setne al\n");
-      printf("  movzx rax, al\n");
-      break;
-    case ND_LT:
-      printf("  cmp rax, rdi\n");
-      printf("  setl al\n");
-      printf("  movzx rax, al\n");
-      break;
-    case ND_LE:
-      printf("  cmp rax, rdi\n");
-      printf("  setle al\n");
-      printf("  movzx rax, al\n");
-      break;
-    case ND_GT:
-      printf("  cmp rax, rdi\n");
-      printf("  setg al\n");
-      printf("  movzx rax, al\n");
-      break;
-    case ND_GE:
-      printf("  cmp rax, rdi\n");
-      printf("  setge al\n");
-      printf("  movzx rax, al\n");
-      break;
-    default:
-      error("error in gen");
-  }
-  printf("  push rax\n");
-}
-
-int main(int argc, char **argv) {
-  if (argc != 2) {
-    fprintf(stderr, "引数の個数が正しくありません\n");
-    return 1;
-  }
-
-  printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
-  printf("main:\n");
-  char* p = argv[1];
-  token = tokenize(p);
-  // print_token_recursive(token);
-
-  Node* node = expr();
-  // print_node_recursive(node);
-
-  gen(node);
-
-  printf("  pop rax\n");
-  printf("  ret\n");
-  return 0;
 }
