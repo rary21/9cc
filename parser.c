@@ -11,16 +11,24 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 2,        // "<=
 1,        // ">
 2,        // ">=
+1,        // variable
+1,        // assignment "="
+1,        // semicolon ";"
 1,        // End Of File
 };
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
-  {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_EOF"};
+  {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN", "TK_SEMICOLON", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
-  {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR", "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE"};
+  {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR", "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN"};
 
+Node* prog[100];
+
+void program();
+Node* statement();
 Node* expr();
+Node* assignment();
 Node* equality();
 Node* relational();
 Node* add();
@@ -31,13 +39,26 @@ Node* primary();
 // go to next token and return true if current token is TK_OP and matches with op
 // otherwise, return false
 bool consume(const char *str) {
+  if (strlen(str) != token->len)
+    return false;
   if (strncmp(str, token->str, token->len) != 0)
     return false;
   // next token
-  debug_print("consuming op: %c  token->kind: %d token->str[0]: %c length: %d\n",
+  debug_print("** consuming op: %c  token->kind: %d token->str[0]: %c length: %d\n",
                str[0], token->kind, token->str[0], token->len);
   token = token->next;
   return true;
+}
+
+// go to next token and return true if current token is TK_IDENT
+// otherwise, return false
+bool consume_ident(char *id) {
+  if (token->kind == TK_IDENT) {
+    *id = token->str[0];
+    token = token->next;
+    return true;
+  }
+  return false;
 }
 
 // go to next token and return true if current token is TK_OP and matches with op
@@ -62,7 +83,7 @@ int expect_number() {
 
 // return true if c is expected to skip
 bool isskip(const char c) {
-  if (c == ' ')
+  if (isspace(c))
     return true;
   return false;
 }
@@ -81,12 +102,13 @@ bool isoperation(const char c) {
 }
 
 // append new token to cur and return pointer to new token
-Token* new_token(Token *cur, TokenKind kind, char **str, int len) {
+Token* new_token(Token *cur, TokenKind kind, char **str) {
   Token *next = (Token*)calloc(1, sizeof(Token));
-  cur->next = next;
+  int len = TK_LEN_OF_KIND[kind];
+  cur->next  = next;
   next->kind = kind;
   next->str  = *str;
-  next->len = len;
+  next->len  = len;
   if (kind == TK_NUM)
     next->val  = strtol(*str, str, 10);
   else
@@ -115,22 +137,6 @@ Node* new_node_number(int val) {
 }
 
 bool get_kind(char *p, TokenKind *kind) {
-  if (isoperation(*p)) {
-    *kind = TK_OP;
-    return true;
-  }
-  if (*p == '(') {
-    *kind = TK_LPAR;
-    return true;
-  }
-  if (*p == ')') {
-    *kind = TK_RPAR;
-    return true;
-  }
-  if (isdigit(*p)) {
-    *kind = TK_NUM;
-    return true;
-  }
   if (strncmp(p, "==", 2) == 0) {
     *kind = TK_EQ;
     return true;
@@ -147,6 +153,22 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_GE;
     return true;
   }
+  if (isoperation(*p)) {
+    *kind = TK_OP;
+    return true;
+  }
+  if (*p == '(') {
+    *kind = TK_LPAR;
+    return true;
+  }
+  if (*p == ')') {
+    *kind = TK_RPAR;
+    return true;
+  }
+  if (isdigit(*p)) {
+    *kind = TK_NUM;
+    return true;
+  }
   if (*p == '<') {
     *kind = TK_LT;
     return true;
@@ -155,12 +177,22 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_GT;
     return true;
   }
-
+  if (*p == '=') {
+    *kind = TK_ASSIGN;
+    return true;
+  }
+  if ('a' <= *p && *p <= 'z') {
+    *kind = TK_IDENT;
+    return true;
+  }
+  if (*p == ';') {
+    *kind = TK_SEMICOLON;
+    return true;
+  }
   return false;
 }
 
 Token* tokenize(char *p) {
-  int len;
   TokenKind kind;
   Token head;
   Token *cur = &head;
@@ -172,34 +204,68 @@ Token* tokenize(char *p) {
       continue;
     }
     if (get_kind(p, &kind)) {
-      len = TK_LEN_OF_KIND[kind];
-      cur = new_token(cur, kind, &p, len);
+      cur = new_token(cur, kind, &p);
       continue;
     }
     error("cannot tokenize");
   }
 
-  cur = new_token(cur, TK_EOF, &p, 1);
+  cur = new_token(cur, TK_EOF, &p);
 
   return head.next;
 }
 
 // return true if current token is eof
-bool is_eof(Token* tkn) {
-  return tkn->kind == TK_EOF;
+bool is_eof() {
+  return token->kind == TK_EOF;
 }
 
-// expr       = equality
+// program    = statement*
+// statement  = expr ";"
+// expr       = assignment
+// assignment = equality ("=" assignment)?
 // equality   = relational ("==" relational | "!=" relational)*
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add        = mul ("+" mul | "-" mul)*
 // mul        = unary ("*" unary | "/" unary)*
-// unary      = ("+" | "-") primary
-// primary    = num | "(" expr ")"
+// unary      = ("+" | "-")? primary
+// primary    = num | ident | "(" expr ")"
 
+void program() {
+  int i = 0;
+  Node* node;
+  for (i = 0; !is_eof() && i < (sizeof(prog) - 1); i++) {
+    node = statement();
+    prog[i] = node;
+  }
+  prog[i] = NULL;
+}
+
+// statement  = expr ";"
+Node* statement() {
+  debug_put("statement\n");
+  Node* node = expr();
+  expect(";");
+  return node;
+}
+
+// expr       = assignment
 Node* expr() {
   debug_put("expr\n");
-  return equality();
+  return assignment();
+}
+
+// assignment = equality ("=" assignment)?
+Node* assignment() {
+  debug_put("assignment\n");
+  Node *node = equality();
+  Node *rhs;
+
+  if (consume("=")) {
+    rhs  = assignment();
+    node = new_node(ND_ASSIGN, node, rhs);
+  }
+  return node;
 }
 
 // equality   = relational ("==" relational | "!=" relational)*
@@ -297,13 +363,18 @@ Node* unary() {
   return primary();
 }
 
-// primary = num | "(" expr ")"
+// primary = num | ident | "(" expr ")"
 Node* primary() {
   debug_put("primary\n");
+  char id;
   // if '(' is found, 
   if (consume("(")) {
     Node *node = expr();
     expect(")");   // ')' should be here
+    return node;
+  } else if (consume_ident(&id)) {
+    Node* node = new_node(ND_IDENT, NULL, NULL);
+    node->offset = (id - 'a' + 1) * 8;
     return node;
   } else {
     return new_node_number(expect_number());

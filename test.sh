@@ -17,23 +17,16 @@ try() {
 }
 
 # add and sub
-try 0 "20 +  5-  25"
-try 24 "12  -24  + 36"
+try 4 "a=1 + 3;"
+try 6 "b = 3-2;a= 3 + 2;c = a + b;"
 # mul and div
-try 13 "13 *4 / 4"
-try 6 "52/ 26 *  3"
+try 9 "a = 1 * 3; b = a * 3;"
+try 1 "c = 3; c = c /3;"
 # all arithmetic calculation
-try 21 "78 - 34 * 2 + 22/2"
-try 43 "21*2 + 24/6 - 3"
-# with parenthesese
-try 0 "(2+2) * 4 / 8 - 2"
-try 15 "(4 * 2 - 8) / 2 + 3 * (2 + 3)"
-# unary
-try 3 "-3 + (14+2) * 4 / 8 - 2"
-try 25 "+10 + (4 * 2 - 8) / 2 + 3 * (2 + 3)"
+try 30 "a = (1 + 3) * 3; b = (a + 3) * 2;"
+try 10 "a = (2 -1) * 2; b = (a + a) * 2; c = a + b;"
 # equality and relational
-try 1 "3 * 4 == (2 + 10)"
-try 1 "3 * 4 >= (2 + 10)"
-try 0 "3 * 4 >  (2 + 10)"
+try 1 "a = 1;b = 1; a==b;"
+try 1 "a = 3 * 2; b = 5; a > b;"
 
 echo OK

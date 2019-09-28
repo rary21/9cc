@@ -15,12 +15,21 @@ int main(int argc, char **argv) {
   token = tokenize(p);
   // print_token_recursive(token);
 
-  Node* node = expr();
-  // print_node_recursive(node);
+  program();
+  // Node* node = expr();
 
-  gen(node);
+  int i = 0;
+  printf("  push rbp\n");
+  printf("  mov rbp, rsp\n");
+  printf("  sub rsp, 208\n");
+  while (prog[i]) {
+    print_node_recursive(prog[i]);
+    gen(prog[i++]);
+    printf("  pop rax   # in loop\n");
+  }
 
-  printf("  pop rax\n");
+  printf("  mov rsp, rbp\n");
+  printf("  pop rbp\n");
   printf("  ret\n");
   return 0;
 }
