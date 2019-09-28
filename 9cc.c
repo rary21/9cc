@@ -27,7 +27,7 @@ typedef struct Token Token;
 struct Token {
   TokenKind kind; // kind of token
   Token *next;    // pointer to next token
-  long int val;        // value when kind is TK_NUM
+  int val;        // value when kind is TK_NUM
   char *str;      // string of token
 };
 
@@ -55,7 +55,7 @@ struct Node {
   NodeKind kind; // kind of node
   Node *lhs;     // left leaf
   Node *rhs;     // right leaf
-  long int val;  // value when kind is ND_NUM
+  int val;  // value when kind is ND_NUM
 };
 
 
@@ -74,8 +74,8 @@ Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
   return node;
 }
 
-Node* new_node_number(long int val) {
-  debug_print("** new_node_number : %ld\n", val);
+Node* new_node_number(int val) {
+  debug_print("** new_node_number : %d\n", val);
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_NUM;
   node->val  = val;
@@ -149,7 +149,7 @@ bool isoperation(const char c) {
 }
 
 void print_token(Token *tkn) {
-  fprintf(stderr, "kind: %d value: %ld str[0]: %c\n", tkn->kind, tkn->val, tkn->str[0]);
+  fprintf(stderr, "kind: %d value: %d str[0]: %c\n", tkn->kind, tkn->val, tkn->str[0]);
 }
 
 void print_token_recursive(Token *tkn) {
@@ -160,7 +160,7 @@ void print_token_recursive(Token *tkn) {
 }
 
 void print_node(Node *node) {
-  fprintf(stderr, "kind: %s value: %ld\n", NODE_KIND_STR[node->kind], node->val);
+  fprintf(stderr, "kind: %s value: %d\n", NODE_KIND_STR[node->kind], node->val);
 }
 
 void print_node_recursive(Node *node) {
@@ -295,7 +295,7 @@ void gen(Node *node) {
   if (node == NULL)
     return ;
   if (node->kind == ND_NUM) {
-    printf("  push %ld\n", node->val);
+    printf("  push %d\n", node->val);
     return;
   }
   gen(node->lhs);
