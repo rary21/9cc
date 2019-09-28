@@ -63,6 +63,12 @@ typedef enum {
   ND_NUM,         // digits
   ND_LPAR,        // left parenthesis "("
   ND_RPAR,        // right parenthesis ")"
+  ND_EQ,          // "=="
+  ND_NE,          // "!="
+  ND_LT,          // "<
+  ND_LE,          // "<=
+  ND_GT,          // ">
+  ND_GE,          // ">=
   NUM_NODE_KIND,
 } NodeKind;
 
@@ -70,7 +76,7 @@ const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
   {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
-  {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR"};
+  {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR", "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE"};
 
 typedef struct Node Node;
 // Node
@@ -83,6 +89,9 @@ struct Node {
 
 
 Node* expr();
+Node* equality();
+Node* relational();
+Node* add();
 Node* mul();
 Node* unary();
 Node* primary();
@@ -120,9 +129,8 @@ void error(char *fmt, ...) {
 
 // go to next token and return true if current token is TK_OP and matches with op
 // otherwise, return false
-bool consume(const char op) {
-  if ((token->kind != TK_OP && token->kind != TK_LPAR && token->kind != TK_RPAR)
-      || token->str[0] != op)
+bool consume(const char *str) {
+  if (strncmp(str, token->str, token->len))
     return false;
   // next token
   debug_print("op: %c  token->kind: %d token->str[0]: %c\n", op, token->kind, token->str[0]);
@@ -285,20 +293,75 @@ bool is_eof(Token* tkn) {
   return tkn->kind == TK_EOF;
 }
 
-// expr    = mul ("+" mul | "-" mul)*
-// mul     = unary ("*" unary | "/" unary)*
-// unary   = ("+" | "-") primary
-// primary = num | "(" expr ")"
+// expr       = equality
+// equality   = relational ("==" relational | "!=" relational)*
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add        = mul ("+" mul | "-" mul)*
+// mul        = unary ("*" unary | "/" unary)*
+// unary      = ("+" | "-") primary
+// primary    = num | "(" expr ")"
+
 Node* expr() {
   debug_put("expr\n");
-  Node *lhs = mul();
-  Node *node = lhs, *rhs;
+  return equality();
+}
+
+// equality   = relational ("==" relational | "!=" relational)*
+Node* equality() {
+  debug_put("equality\n");
+  Node *node = relational();
+  Node *rhs;
 
   while (1) {
-    if (consume('+')) {
+    if (consume("==")) {
+      rhs  = relational();
+      node = new_node(ND_EQ, node, rhs);
+    } else if (consume("!=")) {
+      rhs = relational();
+      node = new_node(ND_NE, node, rhs);
+    } else {
+      return node;
+    }
+  }
+}
+
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+Node* relational() {
+  debug_put("relational\n");
+  Node *node = add();
+  Node *rhs;
+
+  while (1) {
+    if (consume("<")) {
+      rhs  = add();
+      node = new_node(ND_LT, node, rhs);
+    } else if (consume("<=")) {
+      rhs  = add();
+      node = new_node(ND_LE, node, rhs);
+    } else if (consume(">")) {
+      rhs  = add();
+      node = new_node(ND_GT, node, rhs);
+    } else if (consume(">=")) {
+      rhs  = add();
+      node = new_node(ND_GE, node, rhs);
+    } else {
+      return node;
+    }
+  }
+
+}
+
+// add        = mul ("+" mul | "-" mul)*
+Node* add() {
+  debug_put("add\n");
+  Node *node = mul();
+  Node *rhs;
+
+  while (1) {
+    if (consume("+")) {
       rhs  = mul();
       node = new_node(ND_ADD, node, rhs);
-    } else if (consume('-')) {
+    } else if (consume("-")) {
       rhs = mul();
       node = new_node(ND_SUB, node, rhs);
     } else {
@@ -310,14 +373,14 @@ Node* expr() {
 // mul     = unary ("*" unary | "/" unary)*
 Node* mul() {
   debug_put("mul\n");
-  Node *lhs = unary();
-  Node *node = lhs, *rhs;
+  Node *node = unary();
+  Node *rhs;
 
   while (1) {
-    if (consume('*')) {
+    if (consume("*")) {
       rhs = unary();
       node = new_node(ND_MUL, node, rhs);
-    } else if (consume('/')) {
+    } else if (consume("/")) {
       rhs = unary();
       node = new_node(ND_DIV, node, rhs);
     } else {
@@ -330,9 +393,9 @@ Node* mul() {
 Node* unary() {
   debug_put("unary\n");
   
-  if (consume('+'))
+  if (consume("+"))
     return primary();
-  if (consume('-'))
+  if (consume("-"))
     return new_node(ND_SUB, new_node_number(0), primary());
 
   return primary();
@@ -342,7 +405,7 @@ Node* unary() {
 Node* primary() {
   debug_put("primary\n");
   // if '(' is found, 
-  if (consume('(')) {
+  if (consume("(")) {
     Node *node = expr();
     expect(')');   // ')' should be here
     return node;
