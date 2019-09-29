@@ -14,14 +14,17 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 1,        // variable
 1,        // assignment "="
 1,        // semicolon ";"
+6,        // return
 1,        // End Of File
 };
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
-  {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN", "TK_SEMICOLON", "TK_EOF"};
+  {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE",
+   "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN", "TK_SEMICOLON", "TK_RETURN", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
-  {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR", "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN"};
+  {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR",
+   "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", "ND_RETURN"};
 
 Node *prog[100];
 LVar *locals;
@@ -203,6 +206,10 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_GE;
     return true;
   }
+  if (strncmp(p, "return", 6) == 0 && isspace(*(p+6))) {
+    *kind = TK_RETURN;
+    return true;
+  }
   if (isoperation(*p)) {
     *kind = TK_OP;
     return true;
@@ -235,7 +242,7 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_SEMICOLON;
     return true;
   }
-  if ('a' <= *p && *p <= 'z') {
+  if (isalpha(*p)) {
     *kind = TK_IDENT;
     return true;
   }
@@ -271,7 +278,7 @@ bool is_eof() {
 }
 
 // program    = statement*
-// statement  = expr ";"
+// statement  = expr ";" | "return" expr ";"
 // expr       = assignment
 // assignment = equality ("=" assignment)?
 // equality   = relational ("==" relational | "!=" relational)*

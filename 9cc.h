@@ -31,6 +31,7 @@ typedef enum {
   TK_IDENT,       // variable
   TK_ASSIGN,      // assignment "="
   TK_SEMICOLON,   // semicolon ";"
+  TK_RETURN,      // return
   TK_EOF,         // End Of File
   NUM_TOKEN_KIND,
 } TokenKind;
@@ -62,6 +63,7 @@ typedef enum {
   ND_GE,          // ">=
   ND_IDENT,       // variable
   ND_ASSIGN,      // assignment "="
+  ND_RETURN,      // return
   NUM_NODE_KIND,
 } NodeKind;
 
