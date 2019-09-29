@@ -175,7 +175,6 @@ Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
   debug_print("** new_node : %s\n", NODE_KIND_STR[kind]);
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
-  node->val  = 999999;
   node->lhs  = lhs;
   node->rhs  = rhs;
   return node;
@@ -186,8 +185,6 @@ Node* new_node_number(int val) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_NUM;
   node->val  = val;
-  node->rhs  = NULL;
-  node->lhs  = NULL;
   return node;
 }
 
@@ -301,7 +298,6 @@ bool is_eof() {
 // mul        = unary ("*" unary | "/" unary)*
 // unary      = ("+" | "-")? primary
 // primary    = num | ident | "(" expr ")"
-
 void program() {
   int i = 0;
   Node* node;
@@ -450,8 +446,6 @@ Node* primary() {
     expect(TK_RPAR);   // ')' should be here
     return node;
   } else if (consume_ident(&node)) {
-    // node = new_node(ND_IDENT, NULL, NULL);
-    // node->offset = (id - 'a' + 1) * 8;
     return node;
   } else {
     return new_node_number(expect_number());
