@@ -28,5 +28,10 @@ try 10 "a = (2 -1) * 2; b = (a + a) * 2; c = a + b;"
 # equality and relational
 try 1 "ab = 1;b = 1; ab==b;"
 try 0 "abc = 2 * 2; b = 5; abc > b;"
+# return
+try 30 "abd = (1 + 3) * 3; b = (abd + 3) * 2; return b;"
+try 10 "a = (2 -1) * 2; b = (a + a) * 2; c = a + b; return c;"
+try 1 "ab = 1;b = 1; ab==b;return ab;"
+try 0 "abc = 2 * 2; b = 5; return abc > b;"
 
 echo OK

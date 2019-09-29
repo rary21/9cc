@@ -20,6 +20,10 @@ void gen(Node *node) {
       printf("  mov rax, [rdi]\n");
       printf("  push rax\n");
       return;
+    case ND_RETURN:
+      // ND_RETURN has rhs only
+      gen(node->rhs);
+      return;
   }
   if (node->kind == ND_ASSIGN && node->lhs != NULL && node->lhs->kind == ND_IDENT)
     gen_lval(node->lhs);

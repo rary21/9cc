@@ -312,11 +312,17 @@ void program() {
   prog[i] = NULL;
 }
 
-// statement  = expr ";"
+// statement  = expr ";" | "return" expr ";"
 Node* statement() {
   debug_put("statement\n");
-  Node* node = expr();
-  expect(TK_SEMICOLON);
+  Node *node;
+  if (consume(TK_RETURN)) {
+    node = new_node(ND_RETURN, NULL, expr());
+    expect(TK_SEMICOLON);
+  } else {
+    node = expr();
+    expect(TK_SEMICOLON);
+  }
   return node;
 }
 
