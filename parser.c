@@ -1,7 +1,10 @@
 #include "9cc.h"
 
 unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
-1,        // operations
+1,        // addition
+1,        // subtraction
+1,        // multiplication
+1,        // division
 1,        // left parenthesis "("
 1,        // right parenthesis ")"
 1,        // digits (must be 1 since this will be used in strncmp)
@@ -19,8 +22,9 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 };
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
-  {"TK_OP", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE",
-   "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN", "TK_SEMICOLON", "TK_RETURN", "TK_EOF"};
+  {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ",
+   "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN",
+   "TK_SEMICOLON", "TK_RETURN", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR",
@@ -42,16 +46,14 @@ Node* primary();
 
 Node* new_node(NodeKind, Node*, Node*);
 
-// go to next token and return true if current token is TK_OP and matches with op
+// go to next token and return true if current token has same kind
 // otherwise, return false
-bool consume(const char *str) {
-  if (strlen(str) != token->len)
-    return false;
-  if (strncmp(str, token->str, token->len) != 0)
+bool consume(TokenKind kind) {
+  if (token->kind != kind)
     return false;
   // next token
-  debug_print("** consuming op: %c  token->kind: %d token->str[0]: %c length: %d\n",
-               str[0], token->kind, token->str[0], token->len);
+  debug_print("** consuming token->kind: %s\n",
+               TOKEN_KIND_STR[token->kind]);
   token = token->next;
   return true;
 }
@@ -96,11 +98,11 @@ bool consume_ident(Node** node) {
   return false;
 }
 
-// go to next token and return true if current token is TK_OP and matches with op
+// go to next token and return true if current token has same kind
 // otherwise, throw error and exit application
-void expect(const char *str) {
-  if (strncmp(str, token->str, token->len) != 0)
-    error("%c expected, but got %c", str[0], token->str[0]);
+void expect(TokenKind kind) {
+  if (token->kind != kind)
+    error("%s expected, but got %s", TOKEN_KIND_STR[kind], TOKEN_KIND_STR[token->kind]);
   // next token
   token = token->next;
 }
@@ -210,8 +212,20 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_RETURN;
     return true;
   }
-  if (isoperation(*p)) {
-    *kind = TK_OP;
+  if (*p == '+') {
+    *kind = TK_ADD;
+    return true;
+  }
+  if (*p == '-') {
+    *kind = TK_SUB;
+    return true;
+  }
+  if (*p == '*') {
+    *kind = TK_MUL;
+    return true;
+  }
+  if (*p == '/') {
+    *kind = TK_DIV;
     return true;
   }
   if (*p == '(') {
@@ -302,7 +316,7 @@ void program() {
 Node* statement() {
   debug_put("statement\n");
   Node* node = expr();
-  expect(";");
+  expect(TK_SEMICOLON);
   return node;
 }
 
@@ -318,7 +332,7 @@ Node* assignment() {
   Node *node = equality();
   Node *rhs;
 
-  if (consume("=")) {
+  if (consume(TK_ASSIGN)) {
     rhs  = assignment();
     node = new_node(ND_ASSIGN, node, rhs);
   }
@@ -332,10 +346,10 @@ Node* equality() {
   Node *rhs;
 
   while (1) {
-    if (consume("==")) {
+    if (consume(TK_EQ)) {
       rhs  = relational();
       node = new_node(ND_EQ, node, rhs);
-    } else if (consume("!=")) {
+    } else if (consume(TK_NE)) {
       rhs = relational();
       node = new_node(ND_NE, node, rhs);
     } else {
@@ -351,16 +365,16 @@ Node* relational() {
   Node *rhs;
 
   while (1) {
-    if (consume("<")) {
+    if (consume(TK_LT)) {
       rhs  = add();
       node = new_node(ND_LT, node, rhs);
-    } else if (consume("<=")) {
+    } else if (consume(TK_LE)) {
       rhs  = add();
       node = new_node(ND_LE, node, rhs);
-    } else if (consume(">")) {
+    } else if (consume(TK_GT)) {
       rhs  = add();
       node = new_node(ND_GT, node, rhs);
-    } else if (consume(">=")) {
+    } else if (consume(TK_GE)) {
       rhs  = add();
       node = new_node(ND_GE, node, rhs);
     } else {
@@ -377,10 +391,10 @@ Node* add() {
   Node *rhs;
 
   while (1) {
-    if (consume("+")) {
+    if (consume(TK_ADD)) {
       rhs  = mul();
       node = new_node(ND_ADD, node, rhs);
-    } else if (consume("-")) {
+    } else if (consume(TK_SUB)) {
       rhs = mul();
       node = new_node(ND_SUB, node, rhs);
     } else {
@@ -396,10 +410,10 @@ Node* mul() {
   Node *rhs;
 
   while (1) {
-    if (consume("*")) {
+    if (consume(TK_MUL)) {
       rhs = unary();
       node = new_node(ND_MUL, node, rhs);
-    } else if (consume("/")) {
+    } else if (consume(TK_DIV)) {
       rhs = unary();
       node = new_node(ND_DIV, node, rhs);
     } else {
@@ -412,9 +426,9 @@ Node* mul() {
 Node* unary() {
   debug_put("unary\n");
   
-  if (consume("+"))
+  if (consume(TK_ADD))
     return primary();
-  if (consume("-"))
+  if (consume(TK_SUB))
     return new_node(ND_SUB, new_node_number(0), primary());
 
   return primary();
@@ -425,9 +439,9 @@ Node* primary() {
   debug_put("primary\n");
   Node* node;
   // if '(' is found, 
-  if (consume("(")) {
+  if (consume(TK_LPAR)) {
     node = expr();
-    expect(")");   // ')' should be here
+    expect(TK_RPAR);   // ')' should be here
     return node;
   } else if (consume_ident(&node)) {
     // node = new_node(ND_IDENT, NULL, NULL);

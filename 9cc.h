@@ -18,7 +18,10 @@
 
 // kind of token
 typedef enum {
-  TK_OP,          // operations
+  TK_ADD,         // addition
+  TK_SUB,         // subtraction
+  TK_MUL,         // multiplication
+  TK_DIV,         // division
   TK_LPAR,        // left parenthesis "("
   TK_RPAR,        // right parenthesis ")"
   TK_NUM,         // digits
