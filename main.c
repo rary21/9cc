@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
   printf("  mov rbp, rsp\n");
   printf("  sub rsp, 208\n");
   while (prog[i]) {
-    print_node_recursive(prog[i]);
+    // print_node_recursive(prog[i]);
     gen(prog[i++]);
     printf("  pop rax   # in loop\n");
   }

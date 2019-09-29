@@ -23,7 +23,8 @@ const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR", "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN"};
 
-Node* prog[100];
+Node *prog[100];
+LVar *locals;
 
 void program();
 Node* statement();
@@ -35,6 +36,8 @@ Node* add();
 Node* mul();
 Node* unary();
 Node* primary();
+
+Node* new_node(NodeKind, Node*, Node*);
 
 // go to next token and return true if current token is TK_OP and matches with op
 // otherwise, return false
@@ -50,11 +53,40 @@ bool consume(const char *str) {
   return true;
 }
 
+// return LVar* which has same name, or NULL
+LVar* find_lvar(const char* str, int len) {
+  LVar* lvar;
+  for (lvar = locals; lvar; lvar = lvar->next) {
+    // skip if name length is diffrent
+    if (lvar->len != len)
+      continue;
+    if (strncmp(lvar->name, str, len) == 0)
+      return lvar;
+  }
+
+  return NULL;
+}
+
 // go to next token and return true if current token is TK_IDENT
 // otherwise, return false
-bool consume_ident(char *id) {
+bool consume_ident(Node** node) {
   if (token->kind == TK_IDENT) {
-    *id = token->str[0];
+    *node = new_node(ND_IDENT, NULL, NULL);
+    LVar* lvar = find_lvar(token->str, token->len);
+    if (lvar) {
+      (*node)->offset = lvar->offset;
+    } else {
+      LVar* new_lvar   = (LVar*)calloc(1, sizeof(LVar));
+      new_lvar->name   = token->str;
+      new_lvar->len    = token->len;
+      new_lvar->next   = locals;
+      if (locals)
+        new_lvar->offset = locals->offset + 8;
+      else
+        new_lvar->offset = 8;
+      locals           = new_lvar;
+      (*node)->offset = new_lvar->offset;
+    }
     token = token->next;
     return true;
   }
@@ -101,10 +133,28 @@ bool isoperation(const char c) {
   return false;
 }
 
+int get_ident_len(char* str) {
+  int i = 0;
+  // ident must starts with alphabet
+  if (!isalpha(str[0]))
+    return 0;
+
+  for (i = 1; str[i]; i++) {
+    // alphabet or number
+    if (!isalnum(str[i]))
+      break;
+  }
+  return i;
+}
+
 // append new token to cur and return pointer to new token
 Token* new_token(Token *cur, TokenKind kind, char **str) {
   Token *next = (Token*)calloc(1, sizeof(Token));
-  int len = TK_LEN_OF_KIND[kind];
+  int len;
+  if (kind == TK_IDENT)
+    len = get_ident_len(*str);
+  else
+    len = TK_LEN_OF_KIND[kind];
   cur->next  = next;
   next->kind = kind;
   next->str  = *str;
@@ -181,12 +231,12 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_ASSIGN;
     return true;
   }
-  if ('a' <= *p && *p <= 'z') {
-    *kind = TK_IDENT;
-    return true;
-  }
   if (*p == ';') {
     *kind = TK_SEMICOLON;
+    return true;
+  }
+  if ('a' <= *p && *p <= 'z') {
+    *kind = TK_IDENT;
     return true;
   }
   return false;
@@ -366,15 +416,15 @@ Node* unary() {
 // primary = num | ident | "(" expr ")"
 Node* primary() {
   debug_put("primary\n");
-  char id;
+  Node* node;
   // if '(' is found, 
   if (consume("(")) {
-    Node *node = expr();
+    node = expr();
     expect(")");   // ')' should be here
     return node;
-  } else if (consume_ident(&id)) {
-    Node* node = new_node(ND_IDENT, NULL, NULL);
-    node->offset = (id - 'a' + 1) * 8;
+  } else if (consume_ident(&node)) {
+    // node = new_node(ND_IDENT, NULL, NULL);
+    // node->offset = (id - 'a' + 1) * 8;
     return node;
   } else {
     return new_node_number(expect_number());

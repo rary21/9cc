@@ -78,9 +78,20 @@ struct Node {
   int offset;    // stack offset
 };
 
+// left value
+typedef struct LVar LVar;
+
+struct LVar {
+  LVar *next;
+  char *name;
+  int len;
+  int offset;
+};
+
 // current token
-extern Token* token;
-extern Node* prog[];
+extern Token *token;
+extern Node  *prog[];
+extern LVar  *locals;
 
 // parser
 Token* tokenize(char *p);
