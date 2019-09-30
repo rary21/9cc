@@ -1,9 +1,9 @@
 #include "9cc.h"
 
 void gen_lval(Node *node) {
-  printf("  mov rax, rbp\n");
+  printf("  mov rax, rbp        # start generate lvalue, offset:%d\n", node->offset);
   printf("  sub rax, %d\n", node->offset);
-  printf("  push rax\n");
+  printf("  push rax            # end generate lvalue,   offset:%d\n", node->offset);
 }
 
 void gen(Node *node) {
@@ -31,7 +31,32 @@ void gen(Node *node) {
     case ND_RETURN:
       // ND_RETURN has rhs only
       gen(node->rhs);
-      printf("  push rax\n");
+      printf("  pop rax\n");
+      printf("  mov rsp, rbp\n");
+      printf("  pop rbp\n");
+      printf("  ret\n");
+      return;
+    case ND_IF:
+      gen(node->condition);
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+      printf("  je %s\n", node->label_e);
+      gen(node->lhs);
+      printf("  je %s\n", node->label_s);
+      printf("%s:\n", node->label_e);
+      gen(node->rhs);
+      printf("%s:\n", node->label_s);
+      return;
+    case ND_WHILE:
+      printf("%s:\n", node->label_s);
+      gen(node->condition);
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+      printf("  je %s\n", node->label_e);
+      gen(node->lhs);
+      printf("  pop rax\n"); // discard previous value
+      printf("  jmp %s\n", node->label_s);
+      printf("%s:\n", node->label_e);
       return;
   }
 
@@ -84,7 +109,7 @@ void gen(Node *node) {
       printf("  movzx rax, al\n");
       break;
     default:
-      error("error in gen");
+      error("error in gen kind: %s", NODE_KIND_STR[node->kind]);
   }
   printf("  push rax\n");
 }

@@ -34,4 +34,11 @@ try 10 "a = (2 -1) * 2; b = (a + a) * 2; c = a + b; return c;"
 try 1 "ab = 1;b = 1; ab==b;return ab;"
 try 0 "abc = 2 * 2; b = 5; return abc > b;"
 
+# if statement
+try 4 "a = 0; b = 2; if (a == b) return 3; else return 4;"
+try 3 "a = 2; b = 2; if (a == b) return 3; else return 4;"
+# while statement
+try 6 "b=0; while(b < 5) b = b + 2; return b;"
+try 16 "b=1; while(b < 10) b = b * 2; return b;"
+
 echo OK

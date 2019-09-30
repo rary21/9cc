@@ -18,17 +18,22 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 1,        // assignment "="
 1,        // semicolon ";"
 6,        // return
+2,        // if
+4,        // else
+5,        // while
+3,        // for
 1,        // End Of File
 };
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
   {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ",
    "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN",
-   "TK_SEMICOLON", "TK_RETURN", "TK_EOF"};
+   "TK_SEMICOLON", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR",
-   "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", "ND_RETURN"};
+   "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", 
+   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR"};
 
 Node *prog[100];
 LVar *locals;
@@ -138,6 +143,10 @@ bool isoperation(const char c) {
   return false;
 }
 
+bool is_alnum(const char c) {
+  return isalnum(c) || c == '_';
+}
+
 int get_ident_len(char* str) {
   int i = 0;
   // ident must starts with alphabet
@@ -145,8 +154,8 @@ int get_ident_len(char* str) {
     return 0;
 
   for (i = 1; str[i]; i++) {
-    // alphabet or number
-    if (!isalnum(str[i]))
+    // alphabet, number or underscore
+    if (!is_alnum(str[i]))
       break;
   }
   return i;
@@ -154,6 +163,7 @@ int get_ident_len(char* str) {
 
 // append new token to cur and return pointer to new token
 Token* new_token(Token *cur, TokenKind kind, char **str) {
+  debug_print("** new_token : %s\n", TOKEN_KIND_STR[kind]);
   Token *next = (Token*)calloc(1, sizeof(Token));
   int len;
   if (kind == TK_IDENT)
@@ -188,6 +198,31 @@ Node* new_node_number(int val) {
   return node;
 }
 
+Node* new_node_if(Node* condition, Node* lhs, Node* rhs) {
+  static int if_cnt = 0;
+  debug_print("** new_node : %s\n", NODE_KIND_STR[ND_IF]);
+  Node *node  = calloc(1, sizeof(Node));
+  node->kind  = ND_IF;
+  node->condition  = condition;
+  node->lhs   = lhs;
+  node->rhs   = rhs;
+  sprintf(node->label_s, ".LIF_ELSE%d", if_cnt++);
+  sprintf(node->label_e, ".LIF_END%d", if_cnt++);
+  return node;
+}
+
+Node* new_node_while(Node* condition, Node* statement) {
+  static int while_cnt = 0;
+  debug_print("** new_node : %s\n", NODE_KIND_STR[ND_WHILE]);
+  Node *node  = calloc(1, sizeof(Node));
+  node->kind  = ND_WHILE;
+  node->condition  = condition;
+  node->lhs   = statement;
+  sprintf(node->label_s, ".LWHILE_BEGIN%d", while_cnt++);
+  sprintf(node->label_e, ".LWHILE_END%d", while_cnt++);
+  return node;
+}
+
 bool get_kind(char *p, TokenKind *kind) {
   if (strncmp(p, "==", 2) == 0) {
     *kind = TK_EQ;
@@ -205,8 +240,24 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_GE;
     return true;
   }
-  if (strncmp(p, "return", 6) == 0 && isspace(*(p+6))) {
+  if (strncmp(p, "return", 6) == 0 && !is_alnum(*(p+6))) {
     *kind = TK_RETURN;
+    return true;
+  }
+  if (strncmp(p, "if", 2) == 0 && !is_alnum(*(p+2))) {
+    *kind = TK_IF;
+    return true;
+  }
+  if (strncmp(p, "else", 4) == 0 && !is_alnum(*(p+4))) {
+    *kind = TK_ELSE;
+    return true;
+  }
+  if (strncmp(p, "while", 5) == 0 && !is_alnum(*(p+5))) {
+    *kind = TK_WHILE;
+    return true;
+  }
+  if (strncmp(p, "for", 3) == 0 && !is_alnum(*(p+3))) {
+    *kind = TK_FOR;
     return true;
   }
   if (*p == '+') {
@@ -289,7 +340,10 @@ bool is_eof() {
 }
 
 // program    = statement*
-// statement  = expr ";" | "return" expr ";"
+// statement  = expr ";" | "return" expr ";""
+//              "if" "(" expr ")" statement ("else" statement)?
+//              "while" "(" expr ")" statement
+//              "for" "(" expr? ";" expr? ";" expr? ")" statement
 // expr       = assignment
 // assignment = equality ("=" assignment)?
 // equality   = relational ("==" relational | "!=" relational)*
@@ -308,13 +362,30 @@ void program() {
   prog[i] = NULL;
 }
 
-// statement  = expr ";" | "return" expr ";"
+// statement  = expr ";" | "return" expr ";""
+//              "if" "(" expr ")" statement ("else" statement)?
+//              "while" "(" expr ")" statement
+//              "for" "(" expr? ";" expr? ";" expr? ")" statement
 Node* statement() {
   debug_put("statement\n");
   Node *node;
   if (consume(TK_RETURN)) {
     node = new_node(ND_RETURN, NULL, expr());
     expect(TK_SEMICOLON);
+  } else if (consume(TK_IF)) {
+    expect(TK_LPAR);
+    Node *condition = expr();
+    expect(TK_RPAR);
+    node = new_node_if(condition, statement(), NULL);
+    if (consume(TK_ELSE))
+      node->rhs = statement();
+  } else if (consume(TK_WHILE)) {
+    expect(TK_LPAR);
+    Node *condition = expr();
+    expect(TK_RPAR);
+    node = new_node_while(condition, statement());
+  } else if (consume(TK_FOR)) {
+
   } else {
     node = expr();
     expect(TK_SEMICOLON);

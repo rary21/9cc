@@ -35,6 +35,10 @@ typedef enum {
   TK_ASSIGN,      // assignment "="
   TK_SEMICOLON,   // semicolon ";"
   TK_RETURN,      // return
+  TK_IF,          // if
+  TK_ELSE,        // else
+  TK_WHILE,       // while
+  TK_FOR,         // for
   TK_EOF,         // End Of File
   NUM_TOKEN_KIND,
 } TokenKind;
@@ -67,6 +71,9 @@ typedef enum {
   ND_IDENT,       // variable
   ND_ASSIGN,      // assignment "="
   ND_RETURN,      // return
+  ND_IF,          // if
+  ND_WHILE,       // while
+  ND_FOR,         // for
   NUM_NODE_KIND,
 } NodeKind;
 
@@ -76,11 +83,14 @@ const char* NODE_KIND_STR[NUM_NODE_KIND];
 typedef struct Node Node;
 // Node
 struct Node {
-  NodeKind kind; // kind of node
-  Node *lhs;     // left leaf
-  Node *rhs;     // right leaf
-  int val;       // value when kind is ND_NUM
-  int offset;    // stack offset
+  NodeKind kind;      // kind of node
+  Node *lhs;          // left leaf
+  Node *rhs;          // right leaf
+  Node *condition;    // used in if, for, while
+  char label_s[256];  // label used in assembly
+  char label_e[256];  // label used in assembly
+  int val;            // value when kind is ND_NUM
+  int offset;         // stack offset
 };
 
 // left value
