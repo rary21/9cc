@@ -198,14 +198,14 @@ Node* new_node_number(int val) {
   return node;
 }
 
-Node* new_node_if(Node* condition, Node* lhs, Node* rhs) {
+Node* new_node_if(Node* condition, Node* if_statement, Node* else_statement) {
   static int if_cnt = 0;
   debug_print("** new_node : %s\n", NODE_KIND_STR[ND_IF]);
   Node *node  = calloc(1, sizeof(Node));
-  node->kind  = ND_IF;
-  node->condition  = condition;
-  node->lhs   = lhs;
-  node->rhs   = rhs;
+  node->kind           = ND_IF;
+  node->condition      = condition;
+  node->if_statement   = if_statement;
+  node->else_statement = else_statement;
   sprintf(node->label_s, ".LIF_ELSE%d", if_cnt++);
   sprintf(node->label_e, ".LIF_END%d", if_cnt++);
   return node;
@@ -214,12 +214,26 @@ Node* new_node_if(Node* condition, Node* lhs, Node* rhs) {
 Node* new_node_while(Node* condition, Node* statement) {
   static int while_cnt = 0;
   debug_print("** new_node : %s\n", NODE_KIND_STR[ND_WHILE]);
-  Node *node  = calloc(1, sizeof(Node));
-  node->kind  = ND_WHILE;
-  node->condition  = condition;
-  node->lhs   = statement;
+  Node *node = calloc(1, sizeof(Node));
+  node->kind      = ND_WHILE;
+  node->condition = condition;
+  node->statement = statement;
   sprintf(node->label_s, ".LWHILE_BEGIN%d", while_cnt++);
   sprintf(node->label_e, ".LWHILE_END%d", while_cnt++);
+  return node;
+}
+
+Node* new_node_for(Node* condition, Node* init, Node* last, Node* statement) {
+  static int while_cnt = 0;
+  debug_print("** new_node : %s\n", NODE_KIND_STR[ND_FOR]);
+  Node *node  = calloc(1, sizeof(Node));
+  node->kind      = ND_FOR;
+  node->init      = init;
+  node->last      = last;
+  node->condition = condition;
+  node->statement = statement;
+  sprintf(node->label_s, ".LFOR_BEGIN%d", while_cnt++);
+  sprintf(node->label_e, ".LFOR_END%d", while_cnt++);
   return node;
 }
 
@@ -378,13 +392,30 @@ Node* statement() {
     expect(TK_RPAR);
     node = new_node_if(condition, statement(), NULL);
     if (consume(TK_ELSE))
-      node->rhs = statement();
+      node->else_statement = statement();
   } else if (consume(TK_WHILE)) {
     expect(TK_LPAR);
     Node *condition = expr();
     expect(TK_RPAR);
     node = new_node_while(condition, statement());
   } else if (consume(TK_FOR)) {
+    Node *init      = NULL;
+    Node *condition = NULL;
+    Node *last      = NULL;
+    expect(TK_LPAR);
+    if (!consume(TK_SEMICOLON)) {
+      init = expr();
+      expect(TK_SEMICOLON);
+    }
+    if (!consume(TK_SEMICOLON)) {
+      condition = expr();
+      expect(TK_SEMICOLON);
+    }
+    if (!consume(TK_SEMICOLON)) {
+      last = expr();
+    }
+    expect(TK_RPAR);
+    node = new_node_for(condition, init, last, statement());
 
   } else {
     node = expr();

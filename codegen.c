@@ -25,7 +25,7 @@ void gen(Node *node) {
       gen(node->rhs);
       printf("  pop rdi\n");
       printf("  pop rax\n");
-      printf("  mov [rax], rdi\n");
+      printf("  mov [rax], rdi      # assign rval to lval\n");
       printf("  push rdi\n");  // assignment can be concatenated
       return;
     case ND_RETURN:
@@ -41,10 +41,10 @@ void gen(Node *node) {
       printf("  pop rax\n");
       printf("  cmp rax, 0\n");
       printf("  je %s\n", node->label_e);
-      gen(node->lhs);
+      gen(node->if_statement);
       printf("  je %s\n", node->label_s);
       printf("%s:\n", node->label_e);
-      gen(node->rhs);
+      gen(node->else_statement);
       printf("%s:\n", node->label_s);
       return;
     case ND_WHILE:
@@ -53,8 +53,21 @@ void gen(Node *node) {
       printf("  pop rax\n");
       printf("  cmp rax, 0\n");
       printf("  je %s\n", node->label_e);
-      gen(node->lhs);
+      gen(node->statement);
       printf("  pop rax\n"); // discard previous value
+      printf("  jmp %s\n", node->label_s);
+      printf("%s:\n", node->label_e);
+      return;
+    case ND_FOR:
+      gen(node->init);
+      printf("%s:\n", node->label_s);
+      gen(node->condition);
+      printf("  pop rax\n");
+      printf("  cmp rax, 0\n");
+      printf("  je %s\n", node->label_e);
+      gen(node->statement);
+      printf("  pop rax\n"); // discard previous value
+      gen(node->last);
       printf("  jmp %s\n", node->label_s);
       printf("%s:\n", node->label_e);
       return;
