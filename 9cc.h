@@ -24,6 +24,8 @@ typedef enum {
   TK_DIV,         // division
   TK_LPAR,        // left parenthesis "("
   TK_RPAR,        // right parenthesis ")"
+  TK_LBRA,        // left braces  "{"
+  TK_RBRA,        // right braces "}"
   TK_NUM,         // digits
   TK_EQ,          // "=="
   TK_NE,          // "!="
@@ -74,6 +76,7 @@ typedef enum {
   ND_IF,          // if
   ND_WHILE,       // while
   ND_FOR,         // for
+  ND_BLOCK,       // "{" block "}"
   NUM_NODE_KIND,
 } NodeKind;
 
@@ -92,6 +95,7 @@ struct Node {
   Node *else_statement; // used in if
   Node *init;           // used in for
   Node *last;           // used in for
+  Node *block[256];     // used to represent block of code
   char label_s[256];    // label used in assembly
   char label_e[256];    // label used in assembly
   int val;              // value when kind is ND_NUM

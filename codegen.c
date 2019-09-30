@@ -7,6 +7,8 @@ void gen_lval(Node *node) {
 }
 
 void gen(Node *node) {
+  int i_block = 0;
+
   if (node == NULL)
     return ;
 
@@ -71,6 +73,10 @@ void gen(Node *node) {
       printf("  jmp %s\n", node->label_s);
       printf("%s:\n", node->label_e);
       return;
+    case ND_BLOCK:
+      while(node->block[i_block])
+        gen(node->block[i_block++]);
+      return;
   }
 
   gen(node->lhs);
@@ -122,6 +128,7 @@ void gen(Node *node) {
       printf("  movzx rax, al\n");
       break;
     default:
+      error("error in gen kind: %d", node->kind);
       error("error in gen kind: %s", NODE_KIND_STR[node->kind]);
   }
   printf("  push rax\n");

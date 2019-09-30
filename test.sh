@@ -36,7 +36,7 @@ try() {
 
 # if statement
 try 4 "a = 0; b = 2; if (a == b) return 3; else return 4;"
-try 4 "a = 0; b = 2; if (a == b) return 3; return 4;"
+try 4 "a = 1; b = 2; if (a + b < 3) return 3; return 4;"
 try 3 "a = 2; b = 2; if (a == b) return 3; else return 4;"
 # while statement
 try 6 "b=0; while(b < 5) b = b + 2; return b;"
@@ -44,5 +44,8 @@ try 16 "b=1; while(b < 10) b = b * 2; return b;"
 # for statement
 try 55 "b=0; for (a=1; a<=10; a=a+1) b=b+a; return b;"
 try 8 "b=0; for (a=1; a<=10; a=a+b) b=b+a; return b;"
+# block
+try 1 "{b=2; a=1; return a;}"
+try 5 "a = 0; b=0; if (a==b) {a = 1; b=2;} {a = a+b; return a + b;}"
 
 echo OK

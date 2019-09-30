@@ -7,6 +7,8 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 1,        // division
 1,        // left parenthesis "("
 1,        // right parenthesis ")"
+1,        // left braces  "{"
+1,        // right braces "}"
 1,        // digits (must be 1 since this will be used in strncmp)
 2,        // "=="
 2,        // "!="
@@ -26,14 +28,14 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 };
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
-  {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPAR", "TK_RPAR", "TK_NUM", "TK_EQ",
-   "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN",
+  {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPAR", "TK_RPAR", "TK_LBRA", "TK_RBRA", 
+   "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN",
    "TK_SEMICOLON", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR",
    "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", 
-   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR"};
+   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK"};
 
 Node *prog[100];
 LVar *locals;
@@ -298,6 +300,14 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_RPAR;
     return true;
   }
+  if (*p == '{') {
+    *kind = TK_LBRA;
+    return true;
+  }
+  if (*p == '}') {
+    *kind = TK_RBRA;
+    return true;
+  }
   if (isdigit(*p)) {
     *kind = TK_NUM;
     return true;
@@ -358,6 +368,7 @@ bool is_eof() {
 //              "if" "(" expr ")" statement ("else" statement)?
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
+//              "{" statement? "}"
 // expr       = assignment
 // assignment = equality ("=" assignment)?
 // equality   = relational ("==" relational | "!=" relational)*
@@ -380,25 +391,26 @@ void program() {
 //              "if" "(" expr ")" statement ("else" statement)?
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
+//              "{" statement? "}"
 Node* statement() {
   debug_put("statement\n");
   Node *node;
   if (consume(TK_RETURN)) {
     node = new_node(ND_RETURN, NULL, expr());
     expect(TK_SEMICOLON);
-  } else if (consume(TK_IF)) {
+  } else if (consume(TK_IF)) {   // if statement
     expect(TK_LPAR);
     Node *condition = expr();
     expect(TK_RPAR);
     node = new_node_if(condition, statement(), NULL);
     if (consume(TK_ELSE))
       node->else_statement = statement();
-  } else if (consume(TK_WHILE)) {
+  } else if (consume(TK_WHILE)) {  // while statement
     expect(TK_LPAR);
     Node *condition = expr();
     expect(TK_RPAR);
     node = new_node_while(condition, statement());
-  } else if (consume(TK_FOR)) {
+  } else if (consume(TK_FOR)) {  // for statement
     Node *init      = NULL;
     Node *condition = NULL;
     Node *last      = NULL;
@@ -416,7 +428,12 @@ Node* statement() {
     }
     expect(TK_RPAR);
     node = new_node_for(condition, init, last, statement());
-
+  } else if (consume(TK_LBRA)) {  // block
+    int i_block = 0;
+    node = new_node(ND_BLOCK, NULL, NULL);
+    while (!consume(TK_RBRA))
+      node->block[i_block++] = statement();
+    node->block[i_block] = NULL;
   } else {
     node = expr();
     expect(TK_SEMICOLON);
