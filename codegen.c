@@ -44,7 +44,7 @@ void gen(Node *node) {
       printf("  cmp rax, 0\n");
       printf("  je %s\n", node->label_e);
       gen(node->if_statement);
-      printf("  je %s\n", node->label_s);
+      printf("  jmp %s\n", node->label_s);
       printf("%s:\n", node->label_e);
       gen(node->else_statement);
       printf("%s:\n", node->label_s);
@@ -74,8 +74,12 @@ void gen(Node *node) {
       printf("%s:\n", node->label_e);
       return;
     case ND_BLOCK:
-      while(node->block[i_block])
+      printf("# start of block\n");
+      while(node->block[i_block]) {
         gen(node->block[i_block++]);
+        printf("  pop rax\n"); // discard previous value
+      }
+      printf("# end of block\n");
       return;
   }
 
@@ -128,7 +132,6 @@ void gen(Node *node) {
       printf("  movzx rax, al\n");
       break;
     default:
-      error("error in gen kind: %d", node->kind);
       error("error in gen kind: %s", NODE_KIND_STR[node->kind]);
   }
   printf("  push rax\n");

@@ -46,6 +46,6 @@ try 55 "b=0; for (a=1; a<=10; a=a+1) b=b+a; return b;"
 try 8 "b=0; for (a=1; a<=10; a=a+b) b=b+a; return b;"
 # block
 try 1 "{b=2; a=1; return a;}"
-try 5 "a = 0; b=0; if (a==b) {a = 1; b=2;} {a = a+b; return a + b;}"
+try 3 "a = 0; b=0; if (a==b) {a = 1; b=2;} {a = a+b; a=0; a=1;return a + b;}"
 
 echo OK
