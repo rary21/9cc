@@ -413,7 +413,7 @@ void program() {
 //              "if" "(" expr ")" statement ("else" statement)?
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
-//              "{" statement? "}"
+//              "{" statement* "}"
 Node* statement() {
   debug_put("statement\n");
   Node *node;
@@ -469,7 +469,7 @@ Node* expr() {
   return assignment();
 }
 
-// assignment = equality ("=" assignment)?
+// assignment = equality ("=" assignment)*
 Node* assignment() {
   debug_put("assignment\n");
   Node *node = equality();
@@ -565,7 +565,7 @@ Node* mul() {
   }
 }
 
-// unary   = ("+" | "-") primary
+// unary   = ("+" | "-")? primary
 Node* unary() {
   debug_put("unary\n");
   
@@ -577,7 +577,7 @@ Node* unary() {
   return primary();
 }
 
-// primary = num | ident ("(" arg ")")? | "(" expr ")"
+// primary    = num | ident ("(" expr* ")")? | "(" expr ")"
 Node* primary() {
   debug_put("primary\n");
   Node* node;
@@ -595,7 +595,7 @@ Node* primary() {
         return node;
       }
       int i_arg = 0;
-      // args = expr ("," expr)?
+      // args = expr ("," expr)*
       while (i_arg < MAX_ARGS) {
         node->args[i_arg++] = expr();
         if (consume(TK_RPAR))
