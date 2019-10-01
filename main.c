@@ -8,9 +8,6 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
-  printf("main:\n");
   char* p = argv[1];
   token = tokenize(p);
   // print_token_recursive(token);
@@ -19,6 +16,9 @@ int main(int argc, char **argv) {
   // Node* node = expr();
 
   int i = 0;
+  printf(".intel_syntax noprefix\n");
+  printf(".global main\n");
+  printf("main:\n");
   printf("  push rbp\n");
   printf("  mov rbp, rsp\n");
   printf("  sub rsp, 208\n");
