@@ -16,6 +16,10 @@
 #define debug_put(str)
 #endif
 
+#define MAX_ARGS 6
+
+extern const char* X86_64_ABI_REG[MAX_ARGS];
+
 // kind of token
 typedef enum {
   TK_ADD,         // addition
@@ -36,6 +40,7 @@ typedef enum {
   TK_IDENT,       // variable
   TK_ASSIGN,      // assignment "="
   TK_SEMICOLON,   // semicolon ";"
+  TK_COMMA,       // comma ","
   TK_RETURN,      // return
   TK_IF,          // if
   TK_ELSE,        // else
@@ -77,6 +82,7 @@ typedef enum {
   ND_WHILE,       // while
   ND_FOR,         // for
   ND_BLOCK,       // "{" block "}"
+  ND_FUNC,        // function call
   NUM_NODE_KIND,
 } NodeKind;
 
@@ -86,20 +92,22 @@ const char* NODE_KIND_STR[NUM_NODE_KIND];
 typedef struct Node Node;
 // Node
 struct Node {
-  NodeKind kind;        // kind of node
-  Node *lhs;            // left leaf
-  Node *rhs;            // right leaf
-  Node *condition;      // used in if, for, while
-  Node *statement;      // used in for, while
-  Node *if_statement;   // used in if
-  Node *else_statement; // used in if
-  Node *init;           // used in for
-  Node *last;           // used in for
-  Node *block[256];     // used to represent block of code
-  char label_s[256];    // label used in assembly
-  char label_e[256];    // label used in assembly
-  int val;              // value when kind is ND_NUM
-  int offset;           // stack offset
+  NodeKind kind;          // kind of node
+  Node *lhs;              // left leaf
+  Node *rhs;              // right leaf
+  Node *condition;        // used in if, for, while
+  Node *statement;        // used in for, while
+  Node *if_statement;     // used in if
+  Node *else_statement;   // used in if
+  Node *init;             // used in for
+  Node *last;             // used in for
+  Node *block[256];       // used to represent block of code
+  Node *args[MAX_ARGS+1]; // currently, support 6 arguments
+  char label_s[256];      // label used in assembly
+  char label_e[256];      // label used in assembly
+  char *func_name;        // function name used in assembly
+  int val;                // value when kind is ND_NUM
+  int offset;             // stack offset
 };
 
 // left value

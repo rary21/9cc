@@ -19,6 +19,7 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 1,        // variable
 1,        // assignment "="
 1,        // semicolon ";"
+1,        // comma ","
 6,        // return
 2,        // if
 4,        // else
@@ -30,12 +31,12 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
   {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPAR", "TK_RPAR", "TK_LBRA", "TK_RBRA", 
    "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN",
-   "TK_SEMICOLON", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_EOF"};
+   "TK_SEMICOLON", "TK_COMMA", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR",
    "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", 
-   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK"};
+   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC"};
 
 Node *prog[100];
 LVar *locals;
@@ -79,17 +80,21 @@ LVar* find_lvar(const char* str, int len) {
   return NULL;
 }
 
-// go to next token and return true if current token is TK_IDENT
-// otherwise, return false
-bool consume_ident(Node** node) {
+// go to next token and return name if current token is TK_IDENT
+// otherwise, return NULL
+char* allocate_ident(Node** node) {
   if (token->kind == TK_IDENT) {
     *node = new_node(ND_IDENT, NULL, NULL);
     LVar* lvar = find_lvar(token->str, token->len);
     if (lvar) {
       (*node)->offset = lvar->offset;
+      token = token->next;
+      return lvar->name;
     } else {
       LVar* new_lvar   = (LVar*)calloc(1, sizeof(LVar));
-      new_lvar->name   = token->str;
+      new_lvar->name   = calloc(1, 1 + token->len);
+      strncpy(new_lvar->name, token->str, token->len);
+      new_lvar->name[token->len] = '\0';
       new_lvar->len    = token->len;
       new_lvar->next   = locals;
       if (locals)
@@ -98,11 +103,11 @@ bool consume_ident(Node** node) {
         new_lvar->offset = 8;
       locals           = new_lvar;
       (*node)->offset = new_lvar->offset;
+      token = token->next;
+      return new_lvar->name;
     }
-    token = token->next;
-    return true;
   }
-  return false;
+  return NULL;
 }
 
 // go to next token and return true if current token has same kind
@@ -123,6 +128,11 @@ int expect_number() {
   int value = token->val;
   token = token->next;
   return value;
+}
+
+// return true if current token is kind
+bool look_token(TokenKind kind) {
+  return token->kind == kind;
 }
 
 // return true if c is expected to skip
@@ -239,6 +249,14 @@ Node* new_node_for(Node* condition, Node* init, Node* last, Node* statement) {
   return node;
 }
 
+Node* new_node_func(char* func_name) {
+  debug_print("** new_node : %s\n", NODE_KIND_STR[ND_FUNC]);
+  Node *node  = calloc(1, sizeof(Node));
+  node->kind      = ND_FUNC;
+  node->func_name = func_name;
+  return node;
+}
+
 bool get_kind(char *p, TokenKind *kind) {
   if (strncmp(p, "==", 2) == 0) {
     *kind = TK_EQ;
@@ -326,6 +344,10 @@ bool get_kind(char *p, TokenKind *kind) {
   }
   if (*p == ';') {
     *kind = TK_SEMICOLON;
+    return true;
+  }
+  if (*p == ',') {
+    *kind = TK_COMMA;
     return true;
   }
   if (isalpha(*p)) {
@@ -555,16 +577,33 @@ Node* unary() {
   return primary();
 }
 
-// primary = num | ident | "(" expr ")"
+// primary = num | ident ("(" arg ")")? | "(" expr ")"
 Node* primary() {
   debug_put("primary\n");
   Node* node;
+  char* name;
   // if '(' is found, 
   if (consume(TK_LPAR)) {
     node = expr();
     expect(TK_RPAR);   // ')' should be here
     return node;
-  } else if (consume_ident(&node)) {
+  } else if (name = allocate_ident(&node)) {  // TODO: avoid allocation for function
+    debug_print("%s found\n", name);
+    if (consume(TK_LPAR)) {   // assuming function call
+      node = new_node_func(name);
+      if (consume(TK_RPAR)) { // if no argument
+        return node;
+      }
+      int i_arg = 0;
+      // args = expr ("," expr)?
+      while (i_arg < MAX_ARGS) {
+        node->args[i_arg++] = expr();
+        if (consume(TK_RPAR))
+          break;
+        expect(TK_COMMA);
+      }
+      node->args[i_arg] = NULL;
+    }
     return node;
   } else {
     return new_node_number(expect_number());

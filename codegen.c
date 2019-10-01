@@ -1,5 +1,7 @@
 #include "9cc.h"
 
+const char* X86_64_ABI_REG[MAX_ARGS] = {"rbx", "rsi", "rdx", "rcx", "r8", "r9"};
+
 void gen_lval(Node *node) {
   printf("  mov rax, rbp        # start generate lvalue, offset:%d\n", node->offset);
   printf("  sub rax, %d\n", node->offset);
@@ -8,6 +10,7 @@ void gen_lval(Node *node) {
 
 void gen(Node *node) {
   int i_block = 0;
+  int i_arg = 0;
 
   if (node == NULL)
     return ;
@@ -18,17 +21,17 @@ void gen(Node *node) {
       return;
     case ND_IDENT:
       gen_lval(node);
-      printf("  pop rdi\n");
-      printf("  mov rax, [rdi]\n");
+      printf("  pop rbx\n");
+      printf("  mov rax, [rbx]\n");
       printf("  push rax\n");
       return;
     case ND_ASSIGN:
       gen_lval(node->lhs);
       gen(node->rhs);
-      printf("  pop rdi\n");
+      printf("  pop rbx\n");
       printf("  pop rax\n");
-      printf("  mov [rax], rdi      # assign rval to lval\n");
-      printf("  push rdi\n");  // assignment can be concatenated
+      printf("  mov [rax], rbx      # assign rval to lval\n");
+      printf("  push rbx\n");  // assignment can be concatenated
       return;
     case ND_RETURN:
       // ND_RETURN has rhs only
@@ -81,53 +84,61 @@ void gen(Node *node) {
       }
       printf("# end of block\n");
       return;
+    case ND_FUNC:
+      while (node->args[i_arg]) {
+        gen(node->args[i_arg]);
+        printf("  pop rax\n");
+        printf("  mov %s, rax\n", X86_64_ABI_REG[i_arg++]);
+      }
+      printf("  call %s\n", node->func_name);
+      return;
   }
 
   gen(node->lhs);
   gen(node->rhs);
-  printf("  pop rdi\n");
+  printf("  pop rbx\n");
   printf("  pop rax\n");
   switch (node->kind) {
     case ND_ADD:
-      printf("  add rax, rdi\n");
+      printf("  add rax, rbx\n");
       break;
     case ND_SUB:
-      printf("  sub rax, rdi\n");
+      printf("  sub rax, rbx\n");
       break;
     case ND_MUL:
-      printf("  imul rax, rdi\n");
+      printf("  imul rax, rbx\n");
       break;
     case ND_DIV:
       printf("  cqo\n");
-      printf("  idiv rdi\n");
+      printf("  idiv rbx\n");
       break;
     case ND_EQ:
-      printf("  cmp rax, rdi\n");
+      printf("  cmp rax, rbx\n");
       printf("  sete al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_NE:
-      printf("  cmp rax, rdi\n");
+      printf("  cmp rax, rbx\n");
       printf("  setne al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_LT:
-      printf("  cmp rax, rdi\n");
+      printf("  cmp rax, rbx\n");
       printf("  setl al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_LE:
-      printf("  cmp rax, rdi\n");
+      printf("  cmp rax, rbx\n");
       printf("  setle al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_GT:
-      printf("  cmp rax, rdi\n");
+      printf("  cmp rax, rbx\n");
       printf("  setg al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_GE:
-      printf("  cmp rax, rdi\n");
+      printf("  cmp rax, rbx\n");
       printf("  setge al\n");
       printf("  movzx rax, al\n");
       break;
