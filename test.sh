@@ -4,16 +4,21 @@ try() {
   input="$2"
 
   ./9cc "$input" > tmp.s
-  gcc -g -c -o tmp.o tmp.s
-  gcc -g -c -o ./test/foo.o test/foo.c
-  gcc -o tmp tmp.o ./test/foo.o
-  ./tmp
-  actual="$?"
+  if [ $? = 0 ]; then
+    gcc -g -c -o tmp.o tmp.s
+    gcc -g -c -o ./test/foo.o test/foo.c
+    gcc -o tmp tmp.o ./test/foo.o
+    ./tmp
+    actual="$?"
 
-  if [ "$actual" = "$expected" ]; then
-    echo "$input => $actual"
+    if [ "$actual" = "$expected" ]; then
+      echo "$input => $actual"
+    else
+      echo "$input => $expected expected, but got $actual"
+      exit 1
+    fi
   else
-    echo "$input => $expected expected, but got $actual"
+    echo "error in 9cc"
     exit 1
   fi
 }
@@ -50,6 +55,14 @@ try() {
 # try 1 "{b=2; a=1; return a;}"
 # try 3 "a = 0; b=0; if (a==b) {a = 1; b=2;} {a = a+b; a=0; a=1;return a + b;}"
 # function call
-try 55 "a =0; for (i=0;i<10;i=i+1) a = a+i+1; foo(a, i, 2, 3, 4, 5); return a;"
+try 55 \
+"
+  main()
+    a =0;
+    for (i=0;i<10;i=i+1)
+      a = a+i+1;
+    foo(a, i, 2, 3, 4, 5);
+    return a;
+"
 
 echo OK
