@@ -71,19 +71,19 @@ try 3 \
 "
 
 # function call
-try 5 \
+try 1111 \
 "
   bar() {
-    a = 6;
+    a = 1111;
     return a;
   }
   main() {
     a =0;
-    b = 4;
+    b = 3;
     while (a < 3*b) {
       a = a+1;
     }
-    while (2*a > b) {
+    while (3*a > b) {
       b = b+1;
     }
     if (a == b)
