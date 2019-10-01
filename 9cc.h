@@ -82,7 +82,8 @@ typedef enum {
   ND_WHILE,       // while
   ND_FOR,         // for
   ND_BLOCK,       // "{" block "}"
-  ND_FUNC,        // function call
+  ND_FUNC_CALL,   // function call
+  ND_FUNC_DEF,    // function definition
   NUM_NODE_KIND,
 } NodeKind;
 

@@ -18,14 +18,9 @@ int main(int argc, char **argv) {
   int i = 0;
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
-  printf("main:\n");
-  printf("  push rbp\n");
-  printf("  mov rbp, rsp\n");
-  printf("  sub rsp, 208\n");
   while (prog[i]) {
     // print_node_recursive(prog[i]);
     gen(prog[i++]);
-    printf("  pop rax   # in loop\n");
   }
 
   printf("  mov rsp, rbp\n");

@@ -36,7 +36,7 @@ const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR",
    "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", 
-   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC"};
+   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF"};
 
 Node *prog[100];
 LVar *locals;
@@ -51,6 +51,7 @@ Node* add();
 Node* mul();
 Node* unary();
 Node* primary();
+Node* func_def();
 
 Node* new_node(NodeKind, Node*, Node*);
 
@@ -249,10 +250,18 @@ Node* new_node_for(Node* condition, Node* init, Node* last, Node* statement) {
   return node;
 }
 
-Node* new_node_func(char* func_name) {
-  debug_print("** new_node : %s\n", NODE_KIND_STR[ND_FUNC]);
+Node* new_node_func_call(char* func_name) {
+  debug_print("** new_node : %s\n", NODE_KIND_STR[ND_FUNC_CALL]);
   Node *node  = calloc(1, sizeof(Node));
-  node->kind      = ND_FUNC;
+  node->kind      = ND_FUNC_CALL;
+  node->func_name = func_name;
+  return node;
+}
+
+Node* new_node_func_def(char* func_name) {
+  debug_print("** new_node : %s\n", NODE_KIND_STR[ND_FUNC_DEF]);
+  Node *node  = calloc(1, sizeof(Node));
+  node->kind      = ND_FUNC_DEF;
   node->func_name = func_name;
   return node;
 }
@@ -385,26 +394,30 @@ bool is_eof() {
   return token->kind == TK_EOF;
 }
 
-// program    = statement*
+// program    = func_def "{" statement* "}"
 // statement  = expr ";" | "return" expr ";""
 //              "if" "(" expr ")" statement ("else" statement)?
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
-//              "{" statement? "}"
+//              "{" statement* "}"
 // expr       = assignment
-// assignment = equality ("=" assignment)?
+// assignment = equality ("=" assignment)*
 // equality   = relational ("==" relational | "!=" relational)*
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add        = mul ("+" mul | "-" mul)*
 // mul        = unary ("*" unary | "/" unary)*
 // unary      = ("+" | "-")? primary
-// primary    = num | ident | "(" expr ")"
+// primary    = num | ident ("(" expr* ")")? | "(" expr ")"
+// func_def   = ident ("(" arg* ")") "{"
 void program() {
   int i = 0;
-  Node* node;
-  for (i = 0; !is_eof() && i < (sizeof(prog) - 1); i++) {
-    node = statement();
-    prog[i] = node;
+  Node *node, *func;
+
+  while (func = func_def()) {
+    if (!look_token(TK_LBRA))
+      error("\"{\" Missing after function");
+    func->statement = statement();  // must be compound statement
+    prog[i++] = func;
   }
   prog[i] = NULL;
 }
@@ -590,7 +603,7 @@ Node* primary() {
   } else if (name = allocate_ident(&node)) {  // TODO: avoid allocation for function
     debug_print("%s found\n", name);
     if (consume(TK_LPAR)) {   // assuming function call
-      node = new_node_func(name);
+      node = new_node_func_call(name);
       if (consume(TK_RPAR)) { // if no argument
         return node;
       }
@@ -608,4 +621,38 @@ Node* primary() {
   } else {
     return new_node_number(expect_number());
   }
+}
+
+// func_def   = ident ("(" arg* ")") "{"
+Node* func_def() {
+  debug_put("fnc\n");
+  Node* node;
+  char* name;
+
+  if (name = allocate_ident(&node)) // TODO: avoid allocation for function
+  {
+    debug_print("%s found\n", name);
+    if (consume(TK_LPAR))
+    { // assuming function call
+      node = new_node_func_def(name);
+      if (consume(TK_RPAR))
+      { // if no argument
+        return node;
+      }
+      int i_arg = 0;
+      // args = expr ("," expr)*
+      while (i_arg < MAX_ARGS)
+      {
+        node->args[i_arg++] = expr();
+        if (consume(TK_RPAR))
+          break;
+        expect(TK_COMMA);
+      }
+      node->args[i_arg] = NULL;
+      expect(TK_LBRA);  // function definition needs "{"
+      return node;
+    }
+  }
+
+  return NULL;
 }

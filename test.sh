@@ -51,18 +51,47 @@ try() {
 # # for statement
 # try 55 "b=0; for (a=1; a<=10; a=a+1) b=b+a; return b;"
 # try 8 "b=0; for (a=1; a<=10; a=a+b) b=b+a; return b;"
-# # block
-# try 1 "{b=2; a=1; return a;}"
-# try 3 "a = 0; b=0; if (a==b) {a = 1; b=2;} {a = a+b; a=0; a=1;return a + b;}"
+# block
+# try 1 "main (){b=2; a=1; return a;}"
+# try 3 "main(){a = 0; b=0; if (a==b) {a = 1; b=2;} {a = a+b; a=0; a=1;return a + b;}}"
 # function call
-try 55 \
+try 3 \
 "
-  main()
+  bar() {
+    a = 3;
+    return a;
+  }
+  main() {
     a =0;
     for (i=0;i<10;i=i+1)
       a = a+i+1;
-    foo(a, i, 2, 3, 4, 5);
+    a = bar();
     return a;
+  }
+"
+
+# function call
+try 5 \
+"
+  bar() {
+    a = 6;
+    return a;
+  }
+  main() {
+    a =0;
+    b = 4;
+    while (a < 3*b) {
+      a = a+1;
+    }
+    while (2*a > b) {
+      b = b+1;
+    }
+    if (a == b)
+      a = 3;
+    else
+      a = bar();
+    return a;
+  }
 "
 
 echo OK

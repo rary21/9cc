@@ -82,14 +82,15 @@ void gen(Node *node) {
       printf("%s:\n", node->label_e);
       return;
     case ND_BLOCK:
-      printf("# start of block\n");
+      printf(" # start of block\n");
       while(node->block[i_block]) {
         gen(node->block[i_block++]);
         printf("  pop rax\n"); // discard previous value
       }
-      printf("# end of block\n");
+      printf("  push 0              # tmp\n");
+      printf(" # end of block\n");
       return;
-    case ND_FUNC:
+    case ND_FUNC_CALL:
       while (node->args[i_arg]) {
         gen(node->args[i_arg]);
         printf("  pop rax\n");
@@ -97,6 +98,15 @@ void gen(Node *node) {
       }
       printf("  call %s\n", node->func_name);
       printf("  push rax\n");
+      return;
+    case ND_FUNC_DEF:
+      printf("%s:\n", node->func_name);
+      printf("# start of function\n");
+      printf("  push rbp\n");
+      printf("  mov rbp, rsp\n");
+      printf("  sub rsp, 208\n");
+      gen(node->statement);
+      printf("# end of function\n");
       return;
   }
 
