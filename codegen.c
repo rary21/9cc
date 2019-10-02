@@ -7,8 +7,10 @@ void gen_lval(Node *node) {
     printf("  mov rax, rbp        # start generate lvalue, offset:%d\n", node->offset);
     printf("  sub rax, %d\n", node->offset);
     printf("  push rax            # end generate lvalue,   offset:%d\n", node->offset);
+  } else if (node->kind == ND_DEREF) {
+    gen(node->lhs);  // node->lhs is ND_IDENT, so we just push value of it.
   } else {
-    error("gen_lval got not ND_IDENT node");
+    error("gen_lval got %s", NODE_KIND_STR[node->kind]);
   }
 }
 
@@ -22,6 +24,15 @@ void gen(Node *node) {
   switch (node->kind) {
     case ND_NUM:
       printf("  push %d\n", node->val);
+      return;
+    case ND_ADDR:
+      gen_lval(node->lhs);
+      return;
+    case ND_DEREF:
+      gen(node->lhs);
+      printf("  pop r10\n");
+      printf("  mov rax, [r10]\n");
+      printf("  push rax\n");
       return;
     case ND_IDENT:
       gen_lval(node);

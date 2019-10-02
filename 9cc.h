@@ -30,6 +30,7 @@ typedef enum {
   TK_RPAR,        // right parenthesis ")"
   TK_LBRA,        // left braces  "{"
   TK_RBRA,        // right braces "}"
+  TK_AND,         // "&"
   TK_NUM,         // digits
   TK_EQ,          // "=="
   TK_NE,          // "!="
@@ -84,6 +85,8 @@ typedef enum {
   ND_BLOCK,       // "{" block "}"
   ND_FUNC_CALL,   // function call
   ND_FUNC_DEF,    // function definition
+  ND_ADDR,        // "&"
+  ND_DEREF,       // "*"
   NUM_NODE_KIND,
 } NodeKind;
 

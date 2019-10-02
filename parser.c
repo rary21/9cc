@@ -9,6 +9,7 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 1,        // right parenthesis ")"
 1,        // left braces  "{"
 1,        // right braces "}"
+1,        // "&"
 1,        // digits (must be 1 since this will be used in strncmp)
 2,        // "=="
 2,        // "!="
@@ -29,14 +30,15 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 };
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
-  {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPAR", "TK_RPAR", "TK_LBRA", "TK_RBRA", 
+  {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPAR", "TK_RPAR", "TK_LBRA", "TK_RBRA", "TK_AND",
    "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN",
    "TK_SEMICOLON", "TK_COMMA", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_EOF"};
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR",
    "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", 
-   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF"};
+   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
+   "ND_ADDR", "ND_DEREF"};
 
 Node *prog[100];
 LVar *locals;
@@ -319,6 +321,10 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_DIV;
     return true;
   }
+  if (*p == '&') {
+    *kind = TK_AND;
+    return true;
+  }
   if (*p == '(') {
     *kind = TK_LPAR;
     return true;
@@ -406,7 +412,7 @@ bool is_eof() {
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add        = mul ("+" mul | "-" mul)*
 // mul        = unary ("*" unary | "/" unary)*
-// unary      = ("+" | "-")? primary
+// unary      = ("+" | "-" | "&" | "*")? primary
 // primary    = num | ident ("(" expr* ")")? | "(" expr ")"
 // func_def   = ident ("(" args_def ")") "{"
 // args_def   = ident? ("," ident)*
@@ -580,7 +586,7 @@ Node* mul() {
   }
 }
 
-// unary   = ("+" | "-")? primary
+// unary      = ("+" | "-" | "&" | "*")? primary
 Node* unary() {
   debug_put("unary\n");
   
@@ -588,6 +594,10 @@ Node* unary() {
     return primary();
   if (consume(TK_SUB))
     return new_node(ND_SUB, new_node_number(0), primary());
+  if (consume(TK_AND))
+    return new_node(ND_ADDR, primary(), NULL);
+  if (consume(TK_MUL))
+    return new_node(ND_DEREF, primary(), NULL);
 
   return primary();
 }

@@ -96,4 +96,15 @@ try 55 \
   }
 "
 
+#
+try 100 \
+"
+  main() {
+    a = 10;
+    b = &a;
+    *b = 100;
+
+    return a;
+  }
+"
 echo OK
