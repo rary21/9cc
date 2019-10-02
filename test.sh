@@ -71,14 +71,16 @@ try 3 \
 "
 
 # function call
-try 30 \
+try 55 \
 "
-  bar() {
-    aaa = 30;
-    return aaa;
+  sum(a) {
+    b = 0;
+    for (i=1; i< a+1;i=i+1)
+      b = b+i;
+    return b;
   }
   main() {
-    a = bar();
+    a = sum(10);
     b = 3;
     while (a < 3*b) {
       a = a+1;
@@ -89,7 +91,7 @@ try 30 \
     if (a == b)
       a = 3;
     else
-      a = bar();
+      a = sum(10);
     return a;
   }
 "

@@ -90,35 +90,35 @@ typedef enum {
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND];
 const char* NODE_KIND_STR[NUM_NODE_KIND];
 
-typedef struct Node Node;
-// Node
-struct Node {
-  NodeKind kind;          // kind of node
-  Node *lhs;              // left leaf
-  Node *rhs;              // right leaf
-  Node *condition;        // used in if, for, while
-  Node *statement;        // used in for, while
-  Node *if_statement;     // used in if
-  Node *else_statement;   // used in if
-  Node *init;             // used in for
-  Node *last;             // used in for
-  Node *block[256];       // used to represent block of code
-  Node *args[MAX_ARGS+1]; // currently, support 6 arguments
-  char label_s[256];      // label used in assembly
-  char label_e[256];      // label used in assembly
-  char *func_name;        // function name used in assembly
-  int val;                // value when kind is ND_NUM
-  int offset;             // stack offset
-};
-
-// left value
+// local variable
 typedef struct LVar LVar;
-
 struct LVar {
   LVar *next;
   char *name;
   int len;
   int offset;
+};
+
+typedef struct Node Node;
+// Node
+struct Node {
+  NodeKind kind;               // kind of node
+  Node *lhs;                   // left leaf
+  Node *rhs;                   // right leaf
+  Node *condition;             // used in if, for, while
+  Node *statement;             // used in for, while
+  Node *if_statement;          // used in if
+  Node *else_statement;        // used in if
+  Node *init;                  // used in for
+  Node *last;                  // used in for
+  Node *block[256];            // used to represent block of code
+  Node *args_call[MAX_ARGS+1]; // currently, support 6 arguments
+  Node *args_def[MAX_ARGS+1];  // currently, support 6 arguments
+  char label_s[256];           // label used in assembly
+  char label_e[256];           // label used in assembly
+  char *func_name;             // function name used in assembly
+  int val;                     // value when kind is ND_NUM
+  int offset;                  // stack offset
 };
 
 // current token

@@ -19,7 +19,6 @@ int main(int argc, char **argv) {
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
   while (prog[i]) {
-    // print_node_recursive(prog[i]);
     gen(prog[i++]);
   }
 

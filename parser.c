@@ -408,7 +408,8 @@ bool is_eof() {
 // mul        = unary ("*" unary | "/" unary)*
 // unary      = ("+" | "-")? primary
 // primary    = num | ident ("(" expr* ")")? | "(" expr ")"
-// func_def   = ident ("(" arg* ")") "{"
+// func_def   = ident ("(" args_def ")") "{"
+// args_def   = ident? ("," ident)*
 void program() {
   int i = 0;
   Node *node, *func;
@@ -418,6 +419,7 @@ void program() {
       error("\"{\" Missing after function");
     func->statement = statement();  // must be compound statement
     prog[i++] = func;
+    locals = NULL;  // reset local variables
   }
   prog[i] = NULL;
 }
@@ -610,12 +612,12 @@ Node* primary() {
       int i_arg = 0;
       // args = expr ("," expr)*
       while (i_arg < MAX_ARGS) {
-        node->args[i_arg++] = expr();
+        node->args_call[i_arg++] = expr();
         if (consume(TK_RPAR))
           break;
         expect(TK_COMMA);
       }
-      node->args[i_arg] = NULL;
+      node->args_call[i_arg] = NULL;
     }
     return node;
   } else {
@@ -623,10 +625,11 @@ Node* primary() {
   }
 }
 
-// func_def   = ident ("(" arg* ")") "{"
+// func_def   = ident ("(" args_def ")") "{"
+// args_def   = ident? ("," ident)*
 Node* func_def() {
-  debug_put("fnc\n");
-  Node* node;
+  debug_put("fnc_def\n");
+  Node* func_def, *node;
   char* name;
 
   if (name = allocate_ident(&node)) // TODO: avoid allocation for function
@@ -634,23 +637,26 @@ Node* func_def() {
     debug_print("%s found\n", name);
     if (consume(TK_LPAR))
     { // assuming function call
-      node = new_node_func_def(name);
-      if (consume(TK_RPAR))
-      { // if no argument
-        return node;
+      func_def = new_node_func_def(name);
+      if (consume(TK_RPAR)) { // if no argument
+        return func_def;
       }
       int i_arg = 0;
-      // args = expr ("," expr)*
+      // args_def   = ident? ("," ident)*
       while (i_arg < MAX_ARGS)
       {
-        node->args[i_arg++] = expr();
+        name = allocate_ident(&node);
+        if (!name)
+          break;
+        func_def->args_def[i_arg++] = node;
         if (consume(TK_RPAR))
           break;
         expect(TK_COMMA);
       }
-      node->args[i_arg] = NULL;
-      expect(TK_LBRA);  // function definition needs "{"
-      return node;
+      func_def->args_def[i_arg] = NULL;
+      if (!look_token(TK_LBRA))  // function definition needs "{"
+        error("function definition expected, but not \"{\" found");
+      return func_def;
     }
   }
 

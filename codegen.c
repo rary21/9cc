@@ -3,9 +3,13 @@
 const char* X86_64_ABI_REG[MAX_ARGS] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 void gen_lval(Node *node) {
-  printf("  mov rax, rbp        # start generate lvalue, offset:%d\n", node->offset);
-  printf("  sub rax, %d\n", node->offset);
-  printf("  push rax            # end generate lvalue,   offset:%d\n", node->offset);
+  if (node->kind == ND_IDENT) {
+    printf("  mov rax, rbp        # start generate lvalue, offset:%d\n", node->offset);
+    printf("  sub rax, %d\n", node->offset);
+    printf("  push rax            # end generate lvalue,   offset:%d\n", node->offset);
+  } else {
+    error("gen_lval got not ND_IDENT node");
+  }
 }
 
 void gen(Node *node) {
@@ -91,8 +95,8 @@ void gen(Node *node) {
       printf(" # end of block\n");
       return;
     case ND_FUNC_CALL:
-      while (node->args[i_arg]) {
-        gen(node->args[i_arg]);
+      while (node->args_call[i_arg]) {
+        gen(node->args_call[i_arg]);
         printf("  pop rax\n");
         printf("  mov %s, rax\n", X86_64_ABI_REG[i_arg++]);
       }
@@ -105,6 +109,16 @@ void gen(Node *node) {
       printf("  push rbp\n");
       printf("  mov rbp, rsp\n");
       printf("  sub rsp, 208\n");
+      // get all arguments
+      while (node->args_def[i_arg]) {
+        if (node->args_def[i_arg]->kind == ND_IDENT) {
+          gen_lval(node->args_def[i_arg]);
+          printf("  pop rax\n");
+          printf("  mov [rax], %s            # retrieve function argument\n", X86_64_ABI_REG[i_arg++]);
+        } else {
+          error("function definition has arguments not ident");
+        }
+      }
       gen(node->statement);
       printf("# end of function\n");
       return;
