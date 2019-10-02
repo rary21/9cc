@@ -26,14 +26,14 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 4,        // else
 5,        // while
 3,        // for
+3,        // int
 1,        // End Of File
 };
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
   {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPAR", "TK_RPAR", "TK_LBRA", "TK_RBRA", "TK_AND",
    "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN",
-   "TK_SEMICOLON", "TK_COMMA", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_EOF"};
-
+   "TK_SEMICOLON", "TK_COMMA", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_INT", "TK_EOF"};
 
 // return true if c is expected to skip
 bool isskip(const char c) {
@@ -128,6 +128,10 @@ bool get_kind(char *p, TokenKind *kind) {
   }
   if (strncmp(p, "for", 3) == 0 && !is_alnum(*(p+3))) {
     *kind = TK_FOR;
+    return true;
+  }
+  if (strncmp(p, "int", 3) == 0 && !is_alnum(*(p+3))) {
+    *kind = TK_INT;
     return true;
   }
   if (*p == '+') {

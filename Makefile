@@ -9,6 +9,7 @@ $(OBJS): 9cc.h
 
 debug: CFLAGS+=-DDEBUG
 debug: 9cc
+	./test.sh
 
 test: 9cc
 	./test.sh

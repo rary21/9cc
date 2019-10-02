@@ -20,88 +20,15 @@ Node* mul();
 Node* unary();
 Node* primary();
 Node* func_def();
+Node* ident_def();
 
 Node* new_node(NodeKind, Node*, Node*);
 
-// go to next token and return true if current token has same kind
-// otherwise, return false
-bool consume(TokenKind kind) {
-  if (token->kind != kind)
-    return false;
-  // next token
-  debug_print("** consuming token->kind: %s\n",
-               TOKEN_KIND_STR[token->kind]);
-  token = token->next;
-  return true;
+bool iseof() {
+  return token == NULL || token->kind == TK_EOF;
 }
-
-// return LVar* which has same name, or NULL
-LVar* find_lvar(const char* str, int len) {
-  LVar* lvar;
-  for (lvar = locals; lvar; lvar = lvar->next) {
-    // skip if name length is diffrent
-    if (lvar->len != len)
-      continue;
-    if (strncmp(lvar->name, str, len) == 0)
-      return lvar;
-  }
-
-  return NULL;
-}
-
-// go to next token and return name if current token is TK_IDENT
-// otherwise, return NULL
-char* allocate_ident(Node** node) {
-  if (token->kind == TK_IDENT) {
-    *node = new_node(ND_IDENT, NULL, NULL);
-    LVar* lvar = find_lvar(token->str, token->len);
-    if (lvar) {
-      (*node)->offset = lvar->offset;
-      token = token->next;
-      return lvar->name;
-    } else {
-      LVar* new_lvar   = (LVar*)calloc(1, sizeof(LVar));
-      new_lvar->name   = calloc(1, 1 + token->len);
-      strncpy(new_lvar->name, token->str, token->len);
-      new_lvar->name[token->len] = '\0';
-      new_lvar->len    = token->len;
-      new_lvar->next   = locals;
-      if (locals)
-        new_lvar->offset = locals->offset + 8;
-      else
-        new_lvar->offset = 8;
-      locals           = new_lvar;
-      (*node)->offset = new_lvar->offset;
-      token = token->next;
-      return new_lvar->name;
-    }
-  }
-  return NULL;
-}
-
-// go to next token and return true if current token has same kind
-// otherwise, throw error and exit application
-void expect(TokenKind kind) {
-  if (token->kind != kind)
-    error("%s expected, but got %s", TOKEN_KIND_STR[kind], TOKEN_KIND_STR[token->kind]);
-  // next token
-  token = token->next;
-}
-
-// go to next token and return value if current token is TK_NUM
-// otherwise, throw error and exit application
-int expect_number() {
-  if (token->kind != TK_NUM)
-    error("number expected, but got %s", TOKEN_KIND_STR[token->kind]);
-  // next token
-  int value = token->val;
-  token = token->next;
-  return value;
-}
-
-// return true if current token is kind
-bool look_token(TokenKind kind) {
-  return token->kind == kind;
+bool istype() {
+  return token->kind == TK_INT;
 }
 
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
@@ -160,20 +87,141 @@ Node* new_node_for(Node* condition, Node* init, Node* last, Node* statement) {
   return node;
 }
 
-Node* new_node_func_call(char* func_name) {
-  debug_print("** new_node : %s\n", NODE_KIND_STR[ND_FUNC_CALL]);
-  Node *node  = calloc(1, sizeof(Node));
-  node->kind      = ND_FUNC_CALL;
-  node->func_name = func_name;
-  return node;
-}
-
-Node* new_node_func_def(char* func_name) {
+Node* new_node_func_def(char *func_name, Type *type) {
   debug_print("** new_node : %s\n", NODE_KIND_STR[ND_FUNC_DEF]);
   Node *node  = calloc(1, sizeof(Node));
   node->kind      = ND_FUNC_DEF;
   node->func_name = func_name;
+  node->type      = type;
   return node;
+}
+
+int consume_ptrs() {
+  int cnt = 0;
+  while(token->kind == TK_MUL) {
+    token = token->next;
+    cnt++;
+  }
+  return cnt;
+}
+
+Type* consume_type() {
+  if (istype()) {
+    // int ptr_cnt = consume_ptrs();
+    Type *type = calloc(1, sizeof(Type));
+    type = INT;
+    token = token->next;
+    return type;
+  }
+  return NULL;
+}
+
+// go to next token and return true if current token has same kind
+// otherwise, return false
+bool consume(TokenKind kind) {
+  if (token->kind != kind)
+    return false;
+  // next token
+  debug_print("** consuming token->kind: %s\n",
+               TOKEN_KIND_STR[token->kind]);
+  token = token->next;
+  return true;
+}
+
+// return LVar* which has same name, or NULL
+LVar* find_lvar(const char* str, int len) {
+  LVar* lvar;
+  for (lvar = locals; lvar; lvar = lvar->next) {
+    // skip if name length is diffrent
+    if (lvar->len != len)
+      continue;
+    if (strncmp(lvar->name, str, len) == 0)
+      return lvar;
+  }
+
+  return NULL;
+}
+
+Node* consume_func_def() {
+  if (!istype())
+    error("function definition without return value type");
+  Type *type = consume_type();
+  if (token->kind == TK_IDENT) {
+    char *name = calloc(1, 1 + token->len);
+    strncpy(name, token->str, token->len);
+    name[token->len] = '\0';
+    Node *node = new_node_func_def(name, type);
+    token = token->next;
+    return node;
+  }
+  return NULL;
+}
+
+// go to next token and return name if current token is TK_IDENT
+// otherwise, return NULL
+void allocate_ident(Node** _node) {
+  Node *node = *_node;
+  LVar* lvar = find_lvar(node->name, strlen(node->name));
+  if (lvar) {
+    error("%s is already defined\n", node->name);
+  } else {
+    LVar* new_lvar   = (LVar*)calloc(1, sizeof(LVar));
+    new_lvar->name   = node->name;
+    new_lvar->next   = locals;
+    new_lvar->len    = strlen(node->name);
+    if (locals)
+      new_lvar->offset = locals->offset + 8;
+    else
+      new_lvar->offset = 8;
+    locals           = new_lvar;
+    node->offset = new_lvar->offset;
+  }
+}
+
+int get_ident_offset(Node* node) {
+  LVar* lvar = find_lvar(node->name, strlen(node->name));
+  if (!lvar)
+    error("%s is not defined\n", node->name);
+  return lvar->offset;
+}
+
+Node* consume_ident() {
+  if (token->kind == TK_IDENT) {
+    Node *node = new_node(ND_IDENT, NULL, NULL);
+    char *name = calloc(1, 1 + token->len);
+    strncpy(name, token->str, token->len);
+    name[token->len] = '\0';
+    node->name = name;
+    node->kind = ND_IDENT;
+    token = token->next;
+    return node;
+  }
+  return NULL;
+}
+
+// go to next token and return true if current token has same kind
+// otherwise, throw error and exit application
+void expect(TokenKind kind) {
+  if (token->kind != kind)
+    error("%s expected, but got %s", TOKEN_KIND_STR[kind], TOKEN_KIND_STR[token->kind]);
+  // next token
+  token = token->next;
+}
+
+// go to next token and return value if current token is TK_NUM
+// otherwise, throw error and exit application
+int expect_number() {
+  if (token->kind != TK_NUM)
+    error("number expected, but got %s", TOKEN_KIND_STR[token->kind]);
+  // next token
+  int value = token->val;
+  token = token->next;
+  return value;
+}
+
+// return true if current token is kind
+bool look_token(TokenKind kind) {
+  return token->kind == kind;
 }
 
 // program    = func_def "{" statement* "}"
@@ -182,6 +230,8 @@ Node* new_node_func_def(char* func_name) {
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
 //              "{" statement* "}"
+//              ident_def
+// ident_def  = "int" "*"* ident
 // expr       = assignment
 // assignment = equality ("=" assignment)*
 // equality   = relational ("==" relational | "!=" relational)*
@@ -191,7 +241,7 @@ Node* new_node_func_def(char* func_name) {
 // unary      = ("+" | "-" | "&" | "*")? primary
 // primary    = num | ident ("(" expr* ")")? | "(" expr ")"
 // func_def   = ident ("(" args_def ")") "{"
-// args_def   = ident? ("," ident)*
+// args_def   = ident_def? ("," ident_def)*
 void program() {
   int i = 0;
   Node *node, *func;
@@ -202,6 +252,9 @@ void program() {
     func->statement = statement();  // must be compound statement
     prog[i++] = func;
     locals = NULL;  // reset local variables
+    debug_print("program: %d\n", i-1);
+    if (iseof())
+      break;
   }
   prog[i] = NULL;
 }
@@ -211,6 +264,7 @@ void program() {
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
 //              "{" statement* "}"
+//              ident_def
 Node* statement() {
   debug_put("statement\n");
   Node *node;
@@ -253,11 +307,30 @@ Node* statement() {
     while (!consume(TK_RBRA))
       node->block[i_block++] = statement();
     node->block[i_block] = NULL;
+  } else if (istype()) { // ident definition
+    ident_def();         // currently, ident_def() does not output any assembly
+    expect(TK_SEMICOLON);// ident definition ends with semicolon
+    node = statement();
   } else {
     node = expr();
     expect(TK_SEMICOLON);
   }
   return node;
+}
+
+// ident_def  = "int" "*"* ident
+Node* ident_def() {
+  debug_put("ident_def\n");
+  if (istype()) {
+    Type *type  = consume_type();
+    Node *ident = consume_ident();
+    allocate_ident(&ident);
+    ident->type = type;
+    return ident;
+  } else {
+    error("ident definition must starts with type\n");
+  }
+  return NULL;
 }
 
 // expr       = assignment
@@ -388,10 +461,11 @@ Node* primary() {
     node = expr();
     expect(TK_RPAR);   // ')' should be here
     return node;
-  } else if (name = allocate_ident(&node)) {  // TODO: avoid allocation for function
-    debug_print("%s found\n", name);
+  } else if (node = consume_ident()) {
+    debug_print("%s found\n", node->name);
     if (consume(TK_LPAR)) {   // assuming function call
-      node = new_node_func_call(name);
+      node->func_name = node->name;  // copy to func_name
+      node->kind      = ND_FUNC_CALL;
       if (consume(TK_RPAR)) { // if no argument
         return node;
       }
@@ -404,6 +478,8 @@ Node* primary() {
         expect(TK_COMMA);
       }
       node->args_call[i_arg] = NULL;
+    } else {  // assuming ident
+      node->offset = get_ident_offset(node);
     }
     return node;
   } else {
@@ -411,29 +487,27 @@ Node* primary() {
   }
 }
 
-// func_def   = ident ("(" args_def ")") "{"
-// args_def   = ident? ("," ident)*
+// func_def   = type ident ("(" args_def ")") "{"
+// args_def   = ident_def? ("," ident_def)*
 Node* func_def() {
   debug_put("fnc_def\n");
-  Node* func_def, *node;
-  char* name;
+  Node *func_def, *node;
 
-  if (name = allocate_ident(&node)) // TODO: avoid allocation for function
+  func_def = consume_func_def();
+
+  if (func_def)
   {
-    debug_print("%s found\n", name);
+    debug_print("function %s found\n", func_def->func_name);
     if (consume(TK_LPAR))
     { // assuming function call
-      func_def = new_node_func_def(name);
       if (consume(TK_RPAR)) { // if no argument
         return func_def;
       }
       int i_arg = 0;
-      // args_def   = ident? ("," ident)*
+      // args_def   = ident_def? ("," ident_def)*
       while (i_arg < MAX_ARGS)
       {
-        name = allocate_ident(&node);
-        if (!name)
-          break;
+        node = ident_def();
         func_def->args_def[i_arg++] = node;
         if (consume(TK_RPAR))
           break;

@@ -14,11 +14,13 @@ int main(int argc, char **argv) {
 
   program();
   // Node* node = expr();
+  debug_put("program is read\n");
 
   int i = 0;
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
   while (prog[i]) {
+    debug_print("program processing %d\n", i);
     gen(prog[i++]);
   }
 

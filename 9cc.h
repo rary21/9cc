@@ -47,6 +47,7 @@ typedef enum {
   TK_ELSE,        // else
   TK_WHILE,       // while
   TK_FOR,         // for
+  TK_INT,         // int
   TK_EOF,         // End Of File
   NUM_TOKEN_KIND,
 } TokenKind;
@@ -102,6 +103,12 @@ struct LVar {
   int offset;
 };
 
+typedef struct Type Type;
+struct Type {
+  enum {INT, PTR} ty;
+  struct Type *ptr_to;
+};
+
 typedef struct Node Node;
 // Node
 struct Node {
@@ -119,9 +126,11 @@ struct Node {
   Node *args_def[MAX_ARGS+1];  // currently, support 6 arguments
   char label_s[256];           // label used in assembly
   char label_e[256];           // label used in assembly
+  char *name;                  // name used in assembly
   char *func_name;             // function name used in assembly
   int val;                     // value when kind is ND_NUM
   int offset;                  // stack offset
+  Type *type;                  // type
 };
 
 // current token
