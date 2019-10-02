@@ -71,14 +71,14 @@ try 3 \
 "
 
 # function call
-try 1111 \
+try 30 \
 "
   bar() {
-    a = 1111;
-    return a;
+    aaa = 30;
+    return aaa;
   }
   main() {
-    a =0;
+    a = bar();
     b = 3;
     while (a < 3*b) {
       a = a+1;

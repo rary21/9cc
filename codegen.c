@@ -87,7 +87,7 @@ void gen(Node *node) {
         gen(node->block[i_block++]);
         printf("  pop rax\n"); // discard previous value
       }
-      printf("  push 0              # tmp\n");
+      printf("  push rax            # tmp\n");
       printf(" # end of block\n");
       return;
     case ND_FUNC_CALL:
