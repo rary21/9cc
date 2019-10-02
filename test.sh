@@ -27,9 +27,9 @@ try() {
 try 3 \
 "
   int bar() {
-    int a;
-    a = 3;
-    return a;
+    int **aaa;
+    aaa = 3;
+    return aaa;
   }
   int main() {
     int a;
@@ -43,20 +43,20 @@ try 3 \
 "
 
 # function call
-try 55 \
+try 75 \
 "
-  int sum(int a) {
-    int b;
+  int sum(int start, int b) {
+    int c;
     int i;
-    b = 0;
-    for (i=1; i< a+1;i=i+1)
-      b = b+i;
-    return b;
+    c = 0;
+    for (i=start; i< b+1;i=i+1)
+      c = c+i;
+    return c;
   }
   int main() {
     int a;
     int b;
-    a = sum(10);
+    a = sum(1, 10);
     b = 3;
     while (a < 3*b) {
       a = a+1;
@@ -64,7 +64,7 @@ try 55 \
     while (3*a > b) {
       b = b+1;
     }
-    a = sum(10);
+    a = sum(10, 15);
     return a;
   }
 "
@@ -74,7 +74,7 @@ try 100 \
 "
   int main() {
     int a;
-    int b;
+    int *b;
     a = 10;
     b = &a;
     *b = 100;

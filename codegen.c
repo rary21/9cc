@@ -4,7 +4,7 @@ const char* X86_64_ABI_REG[MAX_ARGS] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 void gen_lval(Node *node) {
   if (node->kind == ND_IDENT) {
-    printf("  mov rax, rbp        # start generate lvalue, offset:%d\n", node->offset);
+    printf("  mov rax, rbp        # start generate lvalue, offset:%d type:%d\n", node->offset, node->type->ty);
     printf("  sub rax, %d\n", node->offset);
     printf("  push rax            # end generate lvalue,   offset:%d\n", node->offset);
   } else if (node->kind == ND_DEREF) {

@@ -8,6 +8,7 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
 
 Node *prog[100];
 LVar *locals;
+Type *ptr_types[256];
 
 void program();
 Node* statement();
@@ -107,11 +108,28 @@ int consume_ptrs() {
 
 Type* consume_type() {
   if (istype()) {
-    // int ptr_cnt = consume_ptrs();
-    Type *type = calloc(1, sizeof(Type));
-    type = INT;
     token = token->next;
+    int ptr_cnt = consume_ptrs();
+    Type *type = calloc(1, sizeof(Type));
+    if (!ptr_types[ptr_cnt]) {
+      int i_ptr;
+      for (i_ptr = 0; i_ptr < ptr_cnt + 1; i_ptr++) {
+        if (!ptr_types[i_ptr]) {
+          ptr_types[i_ptr] = calloc(1, sizeof(Type));
+          if (i_ptr == 0) {
+            ptr_types[i_ptr]->ty = INT;
+          } else {
+            ptr_types[i_ptr]->ty     = PTR;
+            ptr_types[i_ptr]->ptr_to = ptr_types[i_ptr - 1];
+          }
+        }
+      }
+    }
+    type->ty     = ptr_types[ptr_cnt]->ty;
+    type->ptr_to = ptr_types[ptr_cnt]->ptr_to;
     return type;
+  } else {
+    error("no type found\n");
   }
   return NULL;
 }
@@ -173,16 +191,23 @@ void allocate_ident(Node** _node) {
       new_lvar->offset = locals->offset + 8;
     else
       new_lvar->offset = 8;
+    if (node->type) {
+      new_lvar->type = node->type;
+    } else {
+      error("no type found for %s\n", node->name);
+    }
     locals           = new_lvar;
     node->offset = new_lvar->offset;
   }
 }
 
-int get_ident_offset(Node* node) {
+void get_ident_info(Node** _node) {
+  Node *node = *_node;
   LVar* lvar = find_lvar(node->name, strlen(node->name));
   if (!lvar)
     error("%s is not defined\n", node->name);
-  return lvar->offset;
+  node->offset = lvar->offset;
+  node->type   = lvar->type;
 }
 
 Node* consume_ident() {
@@ -324,8 +349,8 @@ Node* ident_def() {
   if (istype()) {
     Type *type  = consume_type();
     Node *ident = consume_ident();
-    allocate_ident(&ident);
     ident->type = type;
+    allocate_ident(&ident);
     return ident;
   } else {
     error("ident definition must starts with type\n");
@@ -479,7 +504,7 @@ Node* primary() {
       }
       node->args_call[i_arg] = NULL;
     } else {  // assuming ident
-      node->offset = get_ident_offset(node);
+      get_ident_info(&node);
     }
     return node;
   } else {

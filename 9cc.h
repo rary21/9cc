@@ -94,6 +94,12 @@ typedef enum {
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND];
 const char* NODE_KIND_STR[NUM_NODE_KIND];
 
+typedef struct Type Type;
+struct Type {
+  enum {INT, PTR} ty;
+  struct Type *ptr_to;
+};
+
 // local variable
 typedef struct LVar LVar;
 struct LVar {
@@ -101,12 +107,7 @@ struct LVar {
   char *name;
   int len;
   int offset;
-};
-
-typedef struct Type Type;
-struct Type {
-  enum {INT, PTR} ty;
-  struct Type *ptr_to;
+  Type *type;
 };
 
 typedef struct Node Node;
@@ -137,6 +138,7 @@ struct Node {
 extern Token *token;
 extern Node  *prog[];
 extern LVar  *locals;
+extern Type  *ptr_types[];
 
 // parser
 Token* tokenize(char *p);
