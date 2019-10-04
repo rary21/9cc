@@ -16,6 +16,8 @@ int main(int argc, char **argv) {
   // Node* node = expr();
   debug_put("program is read\n");
 
+  sema();
+
   int i = 0;
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");

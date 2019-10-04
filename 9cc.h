@@ -98,6 +98,8 @@ typedef struct Type Type;
 struct Type {
   enum {INT, PTR} ty;
   struct Type *ptr_to;
+  int nptr;
+  int size;
 };
 
 // local variable
@@ -122,6 +124,7 @@ struct Node {
   Node *else_statement;        // used in if
   Node *init;                  // used in for
   Node *last;                  // used in for
+  Node *body;                  // body of function
   Node *block[256];            // used to represent block of code
   Node *args_call[MAX_ARGS+1]; // currently, support 6 arguments
   Node *args_def[MAX_ARGS+1];  // currently, support 6 arguments
@@ -143,6 +146,7 @@ extern Type  *ptr_types[];
 // parser
 Token* tokenize(char *p);
 void program();
+void sema();
 
 // codegen
 void gen(Node *node);
@@ -153,5 +157,13 @@ void print_token(Token *tkn);
 void print_token_recursive(Token *tkn);
 void print_node(Node *node);
 void print_node_recursive(Node *node);
+
+Node* new_node(NodeKind kind, Node* lhs, Node* rhs);
+Node* new_node_number(int val);
+Type* new_type(int ty, Type *ptr_to);
+Type* new_type_int();
+
+bool is_32(Node *node);
+bool is_8(Node *node);
 
 #endif

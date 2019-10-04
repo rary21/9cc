@@ -46,6 +46,7 @@ Node* new_node_number(int val) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_NUM;
   node->val  = val;
+  node->type = new_type_int();
   return node;
 }
 
@@ -97,6 +98,17 @@ Node* new_node_func_def(char *func_name, Type *type) {
   return node;
 }
 
+Type* new_type(int ty, Type *ptr_to) {
+  Type *type = calloc(1, sizeof(Type));
+  type->ty = ty;
+  if (ty == PTR)
+    type->ptr_to = ptr_to;
+}
+
+Type* new_type_int() {
+  return new_type(INT, NULL);
+}
+
 int consume_ptrs() {
   int cnt = 0;
   while(token->kind == TK_MUL) {
@@ -117,9 +129,13 @@ Type* consume_type() {
         if (!ptr_types[i_ptr]) {
           ptr_types[i_ptr] = calloc(1, sizeof(Type));
           if (i_ptr == 0) {
-            ptr_types[i_ptr]->ty = INT;
+            ptr_types[i_ptr]->ty   = INT;
+            ptr_types[i_ptr]->nptr = 0;
+            ptr_types[i_ptr]->size = 4;
           } else {
             ptr_types[i_ptr]->ty     = PTR;
+            ptr_types[i_ptr]->nptr   = i_ptr;
+            ptr_types[i_ptr]->size   = 8;
             ptr_types[i_ptr]->ptr_to = ptr_types[i_ptr - 1];
           }
         }
@@ -187,10 +203,11 @@ void allocate_ident(Node** _node) {
     new_lvar->name   = node->name;
     new_lvar->next   = locals;
     new_lvar->len    = strlen(node->name);
+    int offset = (node->type->ty == INT)? 8 : 8;
     if (locals)
-      new_lvar->offset = locals->offset + 8;
+      new_lvar->offset = locals->offset + offset;
     else
-      new_lvar->offset = 8;
+      new_lvar->offset = offset;
     if (node->type) {
       new_lvar->type = node->type;
     } else {
@@ -274,7 +291,7 @@ void program() {
   while (func = func_def()) {
     if (!look_token(TK_LBRA))
       error("\"{\" Missing after function");
-    func->statement = statement();  // must be compound statement
+    func->body = statement();  // must be compound statement
     prog[i++] = func;
     locals = NULL;  // reset local variables
     debug_print("program: %d\n", i-1);
@@ -294,7 +311,7 @@ Node* statement() {
   debug_put("statement\n");
   Node *node;
   if (consume(TK_RETURN)) {
-    node = new_node(ND_RETURN, NULL, expr());
+    node = new_node(ND_RETURN, expr(), NULL);
     expect(TK_SEMICOLON);
   } else if (consume(TK_IF)) {   // if statement
     expect(TK_LPAR);

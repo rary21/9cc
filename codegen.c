@@ -1,6 +1,10 @@
 #include "9cc.h"
 
-const char* X86_64_ABI_REG[MAX_ARGS] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+const char* regs[] = {"rax", "r10", "rbx", "r12", "r13", "r14", "r15"};
+const char* regs8[] = {"al", "r10b", "bl", "r12b", "r13b", "r14b", "r15b"};
+const char* regs32[] = {"eax", "r10d", "ebx", "r12d", "r13d", "r14d", "r15d"};
+
+const char* argregs[MAX_ARGS] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 void gen_lval(Node *node) {
   if (node->kind == ND_IDENT) {
@@ -49,8 +53,8 @@ void gen(Node *node) {
       printf("  push r10            # save assignment result\n");  // assignment can be concatenated
       return;
     case ND_RETURN:
-      // ND_RETURN has rhs only
-      gen(node->rhs);
+      // ND_RETURN has lhs only
+      gen(node->lhs);
       printf("  pop rax\n");
       printf("  mov rsp, rbp\n");
       printf("  pop rbp\n");
@@ -109,7 +113,7 @@ void gen(Node *node) {
       while (node->args_call[i_arg]) {
         gen(node->args_call[i_arg]);
         printf("  pop rax\n");
-        printf("  mov %s, rax\n", X86_64_ABI_REG[i_arg++]);
+        printf("  mov %s, rax\n", argregs[i_arg++]);
       }
       printf("  call %s\n", node->func_name);
       printf("  push rax\n");
@@ -125,20 +129,26 @@ void gen(Node *node) {
         if (node->args_def[i_arg]->kind == ND_IDENT) {
           gen_lval(node->args_def[i_arg]);
           printf("  pop rax\n");
-          printf("  mov [rax], %s            # retrieve function argument\n", X86_64_ABI_REG[i_arg++]);
+          printf("  mov [rax], %s            # retrieve function argument\n", argregs[i_arg++]);
         } else {
           error("function definition has arguments not ident");
         }
       }
-      gen(node->statement);
+      gen(node->body);
       printf("# end of function\n");
       return;
   }
 
   gen(node->lhs);
   gen(node->rhs);
-  printf("  pop r10\n");
-  printf("  pop rax\n");
+  char *lreg = regs[1];
+  char *rreg = regs[1];
+  fprintf(stderr, "kind: %s\n", NODE_KIND_STR[node->kind]);
+  if (is_32(node->lhs)) {
+    lreg = 1;
+  }
+  printf("  pop %s\n", regs[1]);
+  printf("  pop %s\n", regs[0]);
   switch (node->kind) {
     case ND_ADD:
       printf("  add rax, r10\n");
