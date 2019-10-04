@@ -5,6 +5,24 @@ const char* regs8[] = {"al", "r10b", "bl", "r12b", "r13b", "r14b", "r15b"};
 const char* regs32[] = {"eax", "r10d", "ebx", "r12d", "r13d", "r14d", "r15d"};
 
 const char* argregs[MAX_ARGS] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+const char* argregs8[MAX_ARGS] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+const char* argregs32[MAX_ARGS] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
+
+const char* get_reg(int i_reg, Node *node) {
+  if (is_32(node))
+    return regs32[i_reg];
+  if (is_8(node))
+    return regs8[i_reg];
+  return regs[i_reg];
+}
+
+const char* get_fncdef_reg(int i_arg, Node *node) {
+  if (is_32(node))
+    return argregs32[i_arg];
+  if (is_8(node))
+    return argregs8[i_arg];
+  return argregs[i_arg];
+}
 
 void gen_lval(Node *node) {
   if (node->kind == ND_IDENT) {
@@ -47,9 +65,10 @@ void gen(Node *node) {
     case ND_ASSIGN:
       gen_lval(node->lhs);
       gen(node->rhs);
+      const char* reg = get_reg(1, node->rhs);
       printf("  pop r10\n");
       printf("  pop rax\n");
-      printf("  mov [rax], r10      # assign rval to lval\n");
+      printf("  mov [rax], %s       # assign rval to lval\n", reg);
       printf("  push r10            # save assignment result\n");  // assignment can be concatenated
       return;
     case ND_RETURN:
@@ -128,8 +147,11 @@ void gen(Node *node) {
       while (node->args_def[i_arg]) {
         if (node->args_def[i_arg]->kind == ND_IDENT) {
           gen_lval(node->args_def[i_arg]);
+          const char* reg = get_fncdef_reg(i_arg, node->args_def[i_arg]);
           printf("  pop rax\n");
-          printf("  mov [rax], %s            # retrieve function argument\n", argregs[i_arg++]);
+          printf("  mov [rax], %s      # retrieve function argument\n"
+                 , reg);
+          i_arg++;
         } else {
           error("function definition has arguments not ident");
         }
@@ -141,55 +163,73 @@ void gen(Node *node) {
 
   gen(node->lhs);
   gen(node->rhs);
-  char *lreg = regs[1];
-  char *rreg = regs[1];
-  fprintf(stderr, "kind: %s\n", NODE_KIND_STR[node->kind]);
-  if (is_32(node->lhs)) {
-    lreg = 1;
-  }
   printf("  pop %s\n", regs[1]);
   printf("  pop %s\n", regs[0]);
+  const char *lreg = regs[0];
+  const char *rreg = regs[1];
+  fprintf(stderr, "kind: %s %p %p\n", NODE_KIND_STR[node->kind], node->lhs, node->rhs);
+  if (!same_type(node->lhs, node->rhs) || !same_size(node->lhs, node->rhs))
+  {
+    fprintf(stderr, "%s %d %d %d\n", node->lhs->name, node->rhs->val, node->lhs->type->size, node->rhs->type->size);
+    error("not same type\n");
+  }
+  if (is_32(node->lhs))
+  {
+    lreg = regs32[0];
+  }
+  else if (is_8(node->lhs))
+  {
+    lreg = regs8[0];
+  }
+  if (is_32(node->rhs))
+  {
+    rreg = regs32[1];
+  }
+  else if (is_8(node->rhs))
+  {
+    rreg = regs8[1];
+  }
   switch (node->kind) {
     case ND_ADD:
-      printf("  add rax, r10\n");
+      printf("  add %s, %s\n", lreg, rreg);
       break;
     case ND_SUB:
-      printf("  sub rax, r10\n");
+      printf("  sub %s, %s\n", lreg, rreg);
       break;
     case ND_MUL:
-      printf("  imul rax, r10\n");
+      printf("  imul %s, %s\n", lreg, rreg);
       break;
     case ND_DIV:
       printf("  cqo\n");
-      printf("  idiv r10\n");
+      printf("  idiv %s\n", rreg);
       break;
     case ND_EQ:
-      printf("  cmp rax, r10\n");
+      printf("  cmp %s, %s\n", lreg, rreg);
       printf("  sete al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_NE:
-      printf("  cmp rax, r10\n");
+      printf("  cmp %s, %s\n", lreg, rreg);
       printf("  setne al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_LT:
-      printf("  cmp rax, r10\n");
+      printf("  cmp %s, %s\n", lreg, rreg);
       printf("  setl al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_LE:
-      printf("  cmp rax, r10\n");
+      printf("  cmp %s, %s\n", lreg, rreg);
       printf("  setle al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_GT:
-      printf("  cmp rax, r10\n");
+      printf("  cmp %s, %s\n", lreg, rreg);
       printf("  setg al\n");
       printf("  movzx rax, al\n");
       break;
     case ND_GE:
-      printf("  cmp rax, r10\n");
+      printf("  cmp %s, %s\n", lreg, rreg);
       printf("  setge al\n");
       printf("  movzx rax, al\n");
       break;

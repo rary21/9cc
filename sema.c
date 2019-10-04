@@ -8,23 +8,31 @@ bool is_32(Node *node) {
 bool is_8(Node *node) {
   return node->type->size == 1;
 }
-
 bool is_int(Node *node) {
   return node->type->ty == INT;
 }
-
 void check_int(Node *node) {
   if (node->type->ty != INT)
     error("got not int\n");
 }
-
 bool is_ptr(Node *node) {
   return node->type->ty == PTR;
 }
-
 bool check_ptr(Node *node) {
   if (node->type->ty != PTR)
     error("got not ptr\n");
+}
+bool same_type(Node *n1, Node *n2) {
+  if (is_int(n1) && is_int(n2))
+    return true;
+  if (is_int(n1) || is_int(n2))
+    return false;
+  if (n1->type->nptr == n1->type->nptr)
+    return true;
+  return false;
+}
+bool same_size(Node *n1, Node *n2) {
+  return n1->type->size == n2->type->size;
 }
 
 Node* scale_ptr(NodeKind kind, Node *base, Type *type) {
@@ -43,10 +51,11 @@ Node* walk_nodecay(Node* node) {
 }
 
 Node* do_walk(Node* node, bool decay) {
-  fprintf(stderr, "do_walk: %s\n", NODE_KIND_STR[node->kind]);
+  fprintf(stderr, "do_walk: %s %s\n", NODE_KIND_STR[node->kind], node->name);
   int i_block = 0;
 
   switch (node->kind) {
+  case ND_IDENT:
   case ND_NUM:
     return node;
   case ND_ADD:
@@ -70,6 +79,28 @@ Node* do_walk(Node* node, bool decay) {
     return node;
   case ND_SUB:
     return node;
+  case ND_MUL:
+  case ND_DIV:
+    node->lhs = walk(node->lhs);
+    node->rhs = walk(node->rhs);
+    if(same_type(node->lhs, node->rhs)) {
+      node->type = node->lhs->type;
+    } else {
+      error("mult or div with different type\n");
+    }
+    return node;
+  case ND_GT:
+  case ND_GE:
+  case ND_LT:
+  case ND_LE:
+    node->lhs = walk(node->lhs);
+    node->rhs = walk(node->rhs);
+    if(same_type(node->lhs, node->rhs)) {
+      node->type = node->lhs->type;
+    } else {
+      error("comparsion with different type\n");
+    }
+    return node;
   case ND_RETURN:
     fprintf(stderr, "return start\n");
     node->lhs = walk(node->lhs);
@@ -83,15 +114,43 @@ Node* do_walk(Node* node, bool decay) {
     fprintf(stderr, "deref end\n");
     return node;
   case ND_ASSIGN:
+    fprintf(stderr, "assign start\n");
     node->lhs = walk(node->lhs);
+    fprintf(stderr, "assign mid\n");
     node->rhs = walk(node->rhs);
+    fprintf(stderr, "assign end:\n");
+    return node;
+  case ND_FOR:
+    node->init      = walk(node->init);
+    node->condition = walk(node->condition);
+    node->last      = walk(node->last);
+    node->statement = walk(node->statement);
+    return node;
+  case ND_WHILE:
+    node->condition = walk(node->condition);
+    node->statement = walk(node->statement);
+    return node;
+  case ND_IF:
+    node->condition      = walk(node->condition);
+    node->if_statement   = walk(node->if_statement);
+    node->else_statement = walk(node->else_statement);
     return node;
   case ND_BLOCK:
     while (node->block[i_block]) {
-      walk(node->block[i_block++]);
+      fprintf(stderr, "i_block %d\n", i_block);
+      node->block[i_block] = walk(node->block[i_block]);
+      i_block++;
+    }
+    return node;
+  case ND_FUNC_CALL:
+    while (node->args_call[i_block]) {
+      node->args_call[i_block] = walk(node->args_call[i_block]);
+      i_block++;
     }
     return node;
   default:
+    node->lhs = walk(node->lhs);
+    node->rhs = walk(node->rhs);
     return node;
   }
 }

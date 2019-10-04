@@ -103,6 +103,11 @@ Type* new_type(int ty, Type *ptr_to) {
   type->ty = ty;
   if (ty == PTR)
     type->ptr_to = ptr_to;
+  if (ty == INT)
+    type->size = 4;
+  else if (ty == PTR) {
+    type->size = 8;
+  }
 }
 
 Type* new_type_int() {
@@ -119,35 +124,31 @@ int consume_ptrs() {
 }
 
 Type* consume_type() {
-  if (istype()) {
-    token = token->next;
-    int ptr_cnt = consume_ptrs();
-    Type *type = calloc(1, sizeof(Type));
-    if (!ptr_types[ptr_cnt]) {
-      int i_ptr;
-      for (i_ptr = 0; i_ptr < ptr_cnt + 1; i_ptr++) {
-        if (!ptr_types[i_ptr]) {
-          ptr_types[i_ptr] = calloc(1, sizeof(Type));
-          if (i_ptr == 0) {
-            ptr_types[i_ptr]->ty   = INT;
-            ptr_types[i_ptr]->nptr = 0;
-            ptr_types[i_ptr]->size = 4;
-          } else {
-            ptr_types[i_ptr]->ty     = PTR;
-            ptr_types[i_ptr]->nptr   = i_ptr;
-            ptr_types[i_ptr]->size   = 8;
-            ptr_types[i_ptr]->ptr_to = ptr_types[i_ptr - 1];
-          }
+  if (!istype())
+    error("no type found\n");
+
+  token = token->next;
+  int ptr_cnt = consume_ptrs();
+  Type *type = calloc(1, sizeof(Type));
+  if (ptr_types[ptr_cnt] == NULL) {
+    int i_ptr;
+    for (i_ptr = 0; i_ptr < ptr_cnt + 1; i_ptr++) {
+      if (ptr_types[i_ptr] == NULL) {
+        ptr_types[i_ptr] = calloc(1, sizeof(Type));
+        if (i_ptr == 0) {
+          ptr_types[i_ptr]->ty   = INT;
+          ptr_types[i_ptr]->nptr = 0;
+          ptr_types[i_ptr]->size = 4;
+        } else {
+          ptr_types[i_ptr]->ty     = PTR;
+          ptr_types[i_ptr]->nptr   = i_ptr;
+          ptr_types[i_ptr]->size   = 8;
+          ptr_types[i_ptr]->ptr_to = ptr_types[i_ptr - 1];
         }
       }
     }
-    type->ty     = ptr_types[ptr_cnt]->ty;
-    type->ptr_to = ptr_types[ptr_cnt]->ptr_to;
-    return type;
-  } else {
-    error("no type found\n");
   }
-  return NULL;
+  return ptr_types[ptr_cnt];
 }
 
 // go to next token and return true if current token has same kind
@@ -199,11 +200,12 @@ void allocate_ident(Node** _node) {
   if (lvar) {
     error("%s is already defined\n", node->name);
   } else {
+    fprintf(stderr, "%s allocated size:%d\n", node->name, node->type->size);
     LVar* new_lvar   = (LVar*)calloc(1, sizeof(LVar));
     new_lvar->name   = node->name;
     new_lvar->next   = locals;
     new_lvar->len    = strlen(node->name);
-    int offset = (node->type->ty == INT)? 8 : 8;
+    int offset = (node->type->ty == INT)? 4 : 8;
     if (locals)
       new_lvar->offset = locals->offset + offset;
     else
@@ -366,6 +368,7 @@ Node* ident_def() {
   if (istype()) {
     Type *type  = consume_type();
     Node *ident = consume_ident();
+    fprintf(stderr, "size:%d\n", type->size);
     ident->type = type;
     allocate_ident(&ident);
     return ident;
@@ -508,6 +511,7 @@ Node* primary() {
     if (consume(TK_LPAR)) {   // assuming function call
       node->func_name = node->name;  // copy to func_name
       node->kind      = ND_FUNC_CALL;
+      node->type      = new_type_int();  // TODO: supoprt any return type
       if (consume(TK_RPAR)) { // if no argument
         return node;
       }
@@ -522,6 +526,7 @@ Node* primary() {
       node->args_call[i_arg] = NULL;
     } else {  // assuming ident
       get_ident_info(&node);
+      fprintf(stderr, "node->name:%s %d\n", node->name, node->type->size);
     }
     return node;
   } else {

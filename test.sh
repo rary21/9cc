@@ -24,66 +24,82 @@ try() {
 }
 
 # function call
-# try 3 \
-# "
-#   int bar() {
-#     int **aaa;
-#     aaa = 3;
-#     return aaa;
-#   }
-#   int main() {
-#     int a;
-#     int i;
-#     a =0;
-#     for (i=0;i<10;i=i+1)
-#       a = a+i+1;
-#     a = bar();
-#     return a;
-#   }
-# "
-# 
-# # function call
-# try 75 \
-# "
-#   int sum(int start, int b) {
-#     int c;
-#     int i;
-#     c = 0;
-#     for (i=start; i< b+1;i=i+1)
-#       c = c+i;
-#     return c;
-#   }
-#   int main() {
-#     int a;
-#     int b;
-#     a = sum(1, 10);
-#     b = 3;
-#     while (a < 3*b) {
-#       a = a+1;
-#     }
-#     while (3*a > b) {
-#       b = b+1;
-#     }
-#     a = sum(10, 15);
-#     return a;
-#   }
-# "
-
-#
-try 6 \
+try 3 \
 "
+  int bar() {
+    int aaa;
+    aaa = 3;
+    return aaa;
+  }
   int main() {
     int a;
-    int *b;
-    int *c;
-    alloc4(&c, 100, 1, 2, 3);
-    a = 10;
-    b = &a;
-    *b = 100;
-
-    a = *(c+1);
-    return a + *(c+2) + *(c+3);
-
+    int i;
+    a =0;
+    for (i=0;i<10;i=i+1)
+      a = a+i+1;
+    a = bar();
+    return a;
   }
 "
+
+try 3 \
+"
+  int bar() {
+    int aaa;
+    aaa = 3;
+    return aaa;
+  }
+  int main() {
+    int a;
+    a = bar();
+    return a;
+  }
+"
+
+# function call
+try 75 \
+"
+  int sum(int start, int b) {
+    int c;
+    int d;
+    int i;
+    i = b;
+    d=0;
+    for (i=start; i< b+1;i=i+1)
+      d = d + i;
+    return d;
+  }
+  int main() {
+    int a;
+    int b;
+    a = sum(1, 10);
+    b = 3;
+    while (a < 3*b) {
+      a = a+1;
+    }
+    while (3*a > b) {
+      b = b+1;
+    }
+    a = sum(10, 15);
+    return a;
+  }
+"
+
+
+# try 6 \
+# "
+#   int main() {
+#     int a;
+#     int *b;
+#     int *c;
+#     alloc4(&c, 100, 1, 2, 3);
+#     a = 10;
+#     b = &a;
+#     *b = 100;
+# 
+#     a = *(c+1);
+#     return a + *(c+2) + *(c+3);
+# 
+#   }
+# "
 echo OK

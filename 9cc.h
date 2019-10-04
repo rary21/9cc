@@ -163,6 +163,8 @@ Node* new_node_number(int val);
 Type* new_type(int ty, Type *ptr_to);
 Type* new_type_int();
 
+bool same_type(Node *n1, Node *n2);
+bool same_size(Node *n1, Node *n2);
 bool is_32(Node *node);
 bool is_8(Node *node);
 
