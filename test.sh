@@ -110,4 +110,13 @@ try 12 \
     return sizeof b + sizeof a;
   }
 "
+
+try 12 \
+"
+  int main() {
+    int a[10];
+    int *b;
+    return sizeof b + sizeof a;
+  }
+"
 echo OK

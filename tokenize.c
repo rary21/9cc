@@ -9,6 +9,8 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 1,        // right parenthesis ")"
 1,        // left braces  "{"
 1,        // right braces "}"
+1,        // left braces  "["
+1,        // right braces "]"
 1,        // "&"
 1,        // digits (must be 1 since this will be used in strncmp)
 2,        // "=="
@@ -32,9 +34,9 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 };
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
-  {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPAR", "TK_RPAR", "TK_LBRA", "TK_RBRA", "TK_AND",
-   "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN",
-   "TK_SEMICOLON", "TK_COMMA", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_INT",
+  {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPARE", "TK_RPARE", "TK_LCBRA", "TK_RCBRA", "TK_LBBRA",
+   "TK_RBBRA", "TK_AND", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", 
+   "TK_ASSIGN", "TK_SEMICOLON", "TK_COMMA", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_INT",
    "TK_SIZEOF", "TK_EOF"};
 
 // return true if c is expected to skip
@@ -161,19 +163,27 @@ bool get_kind(char *p, TokenKind *kind) {
     return true;
   }
   if (*p == '(') {
-    *kind = TK_LPAR;
+    *kind = TK_LPARE;
     return true;
   }
   if (*p == ')') {
-    *kind = TK_RPAR;
+    *kind = TK_RPARE;
     return true;
   }
   if (*p == '{') {
-    *kind = TK_LBRA;
+    *kind = TK_LCBRA;
     return true;
   }
   if (*p == '}') {
-    *kind = TK_RBRA;
+    *kind = TK_RCBRA;
+    return true;
+  }
+  if (*p == '[') {
+    *kind = TK_LBBRA;
+    return true;
+  }
+  if (*p == ']') {
+    *kind = TK_RBBRA;
     return true;
   }
   if (isdigit(*p)) {

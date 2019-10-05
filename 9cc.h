@@ -26,10 +26,12 @@ typedef enum {
   TK_SUB,         // subtraction
   TK_MUL,         // multiplication
   TK_DIV,         // division
-  TK_LPAR,        // left parenthesis "("
-  TK_RPAR,        // right parenthesis ")"
-  TK_LBRA,        // left braces  "{"
-  TK_RBRA,        // right braces "}"
+  TK_LPARE,       // left parenthesis "("
+  TK_RPARE,       // right parenthesis ")"
+  TK_LCBRA,       // left braces  "{"
+  TK_RCBRA,       // right braces "}"
+  TK_LBBRA,       // left braces  "["
+  TK_RBBRA,       // right braces "]"
   TK_AND,         // "&"
   TK_NUM,         // digits
   TK_EQ,          // "=="
@@ -70,8 +72,6 @@ typedef enum {
   ND_MUL,         // multiplication
   ND_DIV,         // division
   ND_NUM,         // digits
-  ND_LPAR,        // left parenthesis "("
-  ND_RPAR,        // right parenthesis ")"
   ND_EQ,          // "=="
   ND_NE,          // "!="
   ND_LT,          // "<
@@ -98,10 +98,11 @@ const char* NODE_KIND_STR[NUM_NODE_KIND];
 
 typedef struct Type Type;
 struct Type {
-  enum {INT, PTR} ty;
+  enum {INT, PTR, ARRAY} ty;
   struct Type *ptr_to;
   int nptr;
   int size;
+  int array_size;
 };
 
 // local variable

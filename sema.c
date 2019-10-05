@@ -104,7 +104,11 @@ Node* do_walk(Node* node, bool decay) {
     return node;
   case ND_SIZEOF:
     node->lhs  = walk(node->lhs);
-    node->val  = node->lhs->type->size;
+    if (node->lhs->type->ty == ARRAY) {
+      node->val = node->lhs->type->array_size;
+    } else {
+      node->val = node->lhs->type->size;
+    }
     node->kind = ND_NUM;
     node->type = new_type_int();
     return node;

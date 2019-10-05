@@ -1,9 +1,9 @@
 #include "9cc.h"
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
-  {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR",
-   "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", 
-   "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
+  {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_EQ", "ND_NE", "ND_LT",
+   "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", "ND_RETURN", "ND_IF",
+   "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
    "ND_ADDR", "ND_DEREF", "ND_SIZEOF"};
 
 Node *prog[100];
@@ -291,7 +291,7 @@ void program() {
   Node *node, *func;
 
   while (func = func_def()) {
-    if (!look_token(TK_LBRA))
+    if (!look_token(TK_LCBRA))
       error("\"{\" Missing after function");
     func->body = statement();  // must be compound statement
     prog[i++] = func;
@@ -316,22 +316,22 @@ Node* statement() {
     node = new_node(ND_RETURN, expr(), NULL);
     expect(TK_SEMICOLON);
   } else if (consume(TK_IF)) {   // if statement
-    expect(TK_LPAR);
+    expect(TK_LPARE);
     Node *condition = expr();
-    expect(TK_RPAR);
+    expect(TK_RPARE);
     node = new_node_if(condition, statement(), NULL);
     if (consume(TK_ELSE))
       node->else_statement = statement();
   } else if (consume(TK_WHILE)) {  // while statement
-    expect(TK_LPAR);
+    expect(TK_LPARE);
     Node *condition = expr();
-    expect(TK_RPAR);
+    expect(TK_RPARE);
     node = new_node_while(condition, statement());
   } else if (consume(TK_FOR)) {  // for statement
     Node *init      = NULL;
     Node *condition = NULL;
     Node *last      = NULL;
-    expect(TK_LPAR);
+    expect(TK_LPARE);
     if (!consume(TK_SEMICOLON)) {
       init = expr();
       expect(TK_SEMICOLON);
@@ -343,12 +343,12 @@ Node* statement() {
     if (!consume(TK_SEMICOLON)) {
       last = expr();
     }
-    expect(TK_RPAR);
+    expect(TK_RPARE);
     node = new_node_for(condition, init, last, statement());
-  } else if (consume(TK_LBRA)) {  // block
+  } else if (consume(TK_LCBRA)) {  // block
     int i_block = 0;
     node = new_node(ND_BLOCK, NULL, NULL);
-    while (!consume(TK_RBRA))
+    while (!consume(TK_RCBRA))
       node->block[i_block++] = statement();
     node->block[i_block] = NULL;
   } else if (istype()) { // ident definition
@@ -362,12 +362,17 @@ Node* statement() {
   return node;
 }
 
-// ident_def  = "int" "*"* ident
+// ident_def  = "int" "*"* ident ("[" num "]")?
 Node* ident_def() {
   debug_put("ident_def\n");
   if (istype()) {
     Type *type  = consume_type();
     Node *ident = consume_ident();
+    if (consume(TK_LBBRA)) {
+      type->ty         = ARRAY;
+      type->array_size = expect_number();
+      expect(TK_RBBRA);
+    }
     fprintf(stderr, "size:%d\n", type->size);
     ident->type = type;
     allocate_ident(&ident);
@@ -502,32 +507,32 @@ Node* primary() {
   Node* node;
   char* name;
   // if '(' is found, 
-  if (consume(TK_LPAR)) {
+  if (consume(TK_LPARE)) {
     node = expr();
-    expect(TK_RPAR);   // ')' should be here
+    expect(TK_RPARE);   // ')' should be here
     return node;
   } else if (consume(TK_SIZEOF)) {
-    if (consume(TK_LPAR)) {
+    if (consume(TK_LPARE)) {
       node = new_node(ND_SIZEOF, unary(), NULL);
-      expect(TK_RPAR);
+      expect(TK_RPARE);
     } else {
       node = new_node(ND_SIZEOF, unary(), NULL);
     }
     return node;
   } else if (node = consume_ident()) {
     debug_print("%s found\n", node->name);
-    if (consume(TK_LPAR)) {   // assuming function call
+    if (consume(TK_LPARE)) {   // assuming function call
       node->func_name = node->name;  // copy to func_name
       node->kind      = ND_FUNC_CALL;
       node->type      = new_type_int();  // TODO: supoprt any return type
-      if (consume(TK_RPAR)) { // if no argument
+      if (consume(TK_RPARE)) { // if no argument
         return node;
       }
       int i_arg = 0;
       // args = expr ("," expr)*
       while (i_arg < MAX_ARGS) {
         node->args_call[i_arg++] = expr();
-        if (consume(TK_RPAR))
+        if (consume(TK_RPARE))
           break;
         expect(TK_COMMA);
       }
@@ -553,9 +558,9 @@ Node* func_def() {
   if (func_def)
   {
     debug_print("function %s found\n", func_def->func_name);
-    if (consume(TK_LPAR))
+    if (consume(TK_LPARE))
     { // assuming function call
-      if (consume(TK_RPAR)) { // if no argument
+      if (consume(TK_RPARE)) { // if no argument
         return func_def;
       }
       int i_arg = 0;
@@ -564,12 +569,12 @@ Node* func_def() {
       {
         node = ident_def();
         func_def->args_def[i_arg++] = node;
-        if (consume(TK_RPAR))
+        if (consume(TK_RPARE))
           break;
         expect(TK_COMMA);
       }
       func_def->args_def[i_arg] = NULL;
-      if (!look_token(TK_LBRA))  // function definition needs "{"
+      if (!look_token(TK_LCBRA))  // function definition needs "{"
         error("function definition expected, but not \"{\" found");
       return func_def;
     }
