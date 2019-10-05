@@ -48,6 +48,7 @@ typedef enum {
   TK_WHILE,       // while
   TK_FOR,         // for
   TK_INT,         // int
+  TK_SIZEOF,      // sizeof
   TK_EOF,         // End Of File
   NUM_TOKEN_KIND,
 } TokenKind;
@@ -88,6 +89,7 @@ typedef enum {
   ND_FUNC_DEF,    // function definition
   ND_ADDR,        // "&"
   ND_DEREF,       // "*"
+  ND_SIZEOF,      // sizeof
   NUM_NODE_KIND,
 } NodeKind;
 

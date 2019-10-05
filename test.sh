@@ -96,11 +96,18 @@ try 6 \
     alloc4(&cc, 100, 1, 2, 3);
     a = 10;
     b = &a;
-    *b = 100;
 
     a = *(cc+1);
     return a + *(cc+2) + *(cc+3);
+  }
+"
 
+try 12 \
+"
+  int main() {
+    int a;
+    int *b;
+    return sizeof b + sizeof a;
   }
 "
 echo OK

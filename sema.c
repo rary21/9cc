@@ -102,6 +102,12 @@ Node* do_walk(Node* node, bool decay) {
       error("comparsion with different type\n");
     }
     return node;
+  case ND_SIZEOF:
+    node->lhs  = walk(node->lhs);
+    node->val  = node->lhs->type->size;
+    node->kind = ND_NUM;
+    node->type = new_type_int();
+    return node;
   case ND_RETURN:
     fprintf(stderr, "return start\n");
     node->lhs = walk(node->lhs);

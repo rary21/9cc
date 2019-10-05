@@ -4,7 +4,7 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_LPAR", "ND_RPAR",
    "ND_EQ", "ND_NE", "ND_LT", "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", 
    "ND_RETURN", "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
-   "ND_ADDR", "ND_DEREF"};
+   "ND_ADDR", "ND_DEREF", "ND_SIZEOF"};
 
 Node *prog[100];
 LVar *locals;
@@ -283,7 +283,7 @@ bool look_token(TokenKind kind) {
 // add        = mul ("+" mul | "-" mul)*
 // mul        = unary ("*" unary | "/" unary)*
 // unary      = ("+" | "-" | "&" | "*")? primary
-// primary    = num | ident ("(" expr* ")")? | "(" expr ")"
+// primary    = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
 // func_def   = ident ("(" args_def ")") "{"
 // args_def   = ident_def? ("," ident_def)*
 void program() {
@@ -496,7 +496,7 @@ Node* unary() {
   return primary();
 }
 
-// primary    = num | ident ("(" expr* ")")? | "(" expr ")"
+// primary    = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
 Node* primary() {
   debug_put("primary\n");
   Node* node;
@@ -505,6 +505,14 @@ Node* primary() {
   if (consume(TK_LPAR)) {
     node = expr();
     expect(TK_RPAR);   // ')' should be here
+    return node;
+  } else if (consume(TK_SIZEOF)) {
+    if (consume(TK_LPAR)) {
+      node = new_node(ND_SIZEOF, unary(), NULL);
+      expect(TK_RPAR);
+    } else {
+      node = new_node(ND_SIZEOF, unary(), NULL);
+    }
     return node;
   } else if (node = consume_ident()) {
     debug_print("%s found\n", node->name);
