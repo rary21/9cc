@@ -142,7 +142,10 @@ void gen(Node *node) {
       printf("# start of function\n");
       printf("  push rbp\n");
       printf("  mov rbp, rsp\n");
-      printf("  sub rsp, %d\n", node->locals_size);
+      int lsize = node->locals_size;
+      // ensure rsp 16 bytes alignment
+      lsize = lsize + (16 - lsize%16);
+      printf("  sub rsp, %d\n", lsize);
       // get all arguments
       while (node->args_def[i_arg]) {
         if (node->args_def[i_arg]->kind == ND_IDENT) {
