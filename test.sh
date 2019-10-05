@@ -86,20 +86,21 @@ try 75 \
 "
 
 
-# try 6 \
-# "
-#   int main() {
-#     int a;
-#     int *b;
-#     int *c;
-#     alloc4(&c, 100, 1, 2, 3);
-#     a = 10;
-#     b = &a;
-#     *b = 100;
-# 
-#     a = *(c+1);
-#     return a + *(c+2) + *(c+3);
-# 
-#   }
-# "
+try 6 \
+"
+  int main() {
+    int a;
+    int *b;
+    int *cc;
+    int *c;
+    alloc4(&cc, 100, 1, 2, 3);
+    a = 10;
+    b = &a;
+    *b = 100;
+
+    a = *(cc+1);
+    return a + *(cc+2) + *(cc+3);
+
+  }
+"
 echo OK

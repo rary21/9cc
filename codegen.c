@@ -167,10 +167,11 @@ void gen(Node *node) {
   printf("  pop %s\n", regs[0]);
   const char *lreg = regs[0];
   const char *rreg = regs[1];
-  fprintf(stderr, "kind: %s %p %p\n", NODE_KIND_STR[node->kind], node->lhs, node->rhs);
+  fprintf(stderr, "kind: %s l:%s r:%s\n", NODE_KIND_STR[node->kind], NODE_KIND_STR[node->lhs->kind], NODE_KIND_STR[node->rhs->kind]);
+  fprintf(stderr, "%s %d %d\n", node->lhs->name, node->rhs->val, node->rhs->type->size);
   if (!same_type(node->lhs, node->rhs) || !same_size(node->lhs, node->rhs))
   {
-    fprintf(stderr, "%s %d %d %d\n", node->lhs->name, node->rhs->val, node->lhs->type->size, node->rhs->type->size);
+    fprintf(stderr, "%s %d %d %d\n", node->lhs->name, node->rhs->val);
     error("not same type\n");
   }
   if (is_32(node->lhs))

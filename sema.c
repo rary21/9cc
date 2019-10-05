@@ -37,8 +37,9 @@ bool same_size(Node *n1, Node *n2) {
 
 Node* scale_ptr(NodeKind kind, Node *base, Type *type) {
   Node *node = new_node(kind, NULL, NULL);
-  node->lhs = base;
-  node->rhs = new_node_number(type->ptr_to->size);
+  node->lhs  = base;
+  node->rhs  = new_node_number(type->ptr_to->size);
+  node->type = type;
   return node;
 }
 
@@ -104,6 +105,7 @@ Node* do_walk(Node* node, bool decay) {
   case ND_RETURN:
     fprintf(stderr, "return start\n");
     node->lhs = walk(node->lhs);
+    node->type = node->lhs->type;
     fprintf(stderr, "return end\n");
     return node;
   case ND_DEREF:
@@ -113,11 +115,19 @@ Node* do_walk(Node* node, bool decay) {
     node->type = node->lhs->type->ptr_to;
     fprintf(stderr, "deref end\n");
     return node;
+  case ND_ADDR:
+    fprintf(stderr, "addr start\n");
+    node->lhs = walk(node->lhs);
+    Type *type = new_type(PTR, node->lhs->type);
+    node->type = type;
+    fprintf(stderr, "addr end\n");
+    return node;
   case ND_ASSIGN:
-    fprintf(stderr, "assign start\n");
+    fprintf(stderr, "assign start %s %s\n", node->lhs->name, node->rhs->name);
     node->lhs = walk(node->lhs);
     fprintf(stderr, "assign mid\n");
     node->rhs = walk(node->rhs);
+    node->type = node->lhs->type;
     fprintf(stderr, "assign end:\n");
     return node;
   case ND_FOR:
@@ -149,8 +159,7 @@ Node* do_walk(Node* node, bool decay) {
     }
     return node;
   default:
-    node->lhs = walk(node->lhs);
-    node->rhs = walk(node->rhs);
+    error("unsupported\n");
     return node;
   }
 }
