@@ -21,7 +21,7 @@ Node* mul();
 Node* unary();
 Node* primary();
 Node* func_def();
-Node* ident_def();
+Node* ident_decl();
 
 Node* new_node(NodeKind, Node*, Node*);
 
@@ -173,7 +173,6 @@ LVar* find_lvar(const char* str, int len) {
     if (strncmp(lvar->name, str, len) == 0)
       return lvar;
   }
-
   return NULL;
 }
 
@@ -274,8 +273,8 @@ bool look_token(TokenKind kind) {
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
 //              "{" statement* "}"
-//              ident_def
-// ident_def  = "int" "*"* ident
+//              ident_decl
+// ident_decl = "int" "*"* ident
 // expr       = assignment
 // assignment = equality ("=" assignment)*
 // equality   = relational ("==" relational | "!=" relational)*
@@ -285,7 +284,7 @@ bool look_token(TokenKind kind) {
 // unary      = ("+" | "-" | "&" | "*")? primary
 // primary    = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
 // func_def   = ident ("(" args_def ")") "{"
-// args_def   = ident_def? ("," ident_def)*
+// args_def   = ident_decl? ("," ident_decl)*
 void program() {
   int i = 0;
   Node *node, *func;
@@ -294,6 +293,7 @@ void program() {
     if (!look_token(TK_LCBRA))
       error("\"{\" Missing after function");
     func->body = statement();  // must be compound statement
+    func->locals = locals;
     prog[i++] = func;
     locals = NULL;  // reset local variables
     debug_print("program: %d\n", i-1);
@@ -308,7 +308,7 @@ void program() {
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
 //              "{" statement* "}"
-//              ident_def
+//              ident_decl
 Node* statement() {
   debug_put("statement\n");
   Node *node;
@@ -352,7 +352,7 @@ Node* statement() {
       node->block[i_block++] = statement();
     node->block[i_block] = NULL;
   } else if (istype()) { // ident definition
-    ident_def();         // currently, ident_def() does not output any assembly
+    ident_decl();         // currently, ident_decl() does not output any assembly
     expect(TK_SEMICOLON);// ident definition ends with semicolon
     node = statement();
   } else {
@@ -362,9 +362,9 @@ Node* statement() {
   return node;
 }
 
-// ident_def  = "int" "*"* ident ("[" num "]")?
-Node* ident_def() {
-  debug_put("ident_def\n");
+// ident_decl  = "int" "*"* ident ("[" num "]")?
+Node* ident_decl() {
+  debug_put("ident_decl\n");
   if (istype()) {
     Type *type  = consume_type();
     Node *ident = consume_ident();
@@ -548,7 +548,7 @@ Node* primary() {
 }
 
 // func_def   = type ident ("(" args_def ")") "{"
-// args_def   = ident_def? ("," ident_def)*
+// args_def   = ident_decl? ("," ident_decl)*
 Node* func_def() {
   debug_put("fnc_def\n");
   Node *func_def, *node;
@@ -564,10 +564,10 @@ Node* func_def() {
         return func_def;
       }
       int i_arg = 0;
-      // args_def   = ident_def? ("," ident_def)*
+      // args_def   = ident_decl? ("," ident_decl)*
       while (i_arg < MAX_ARGS)
       {
-        node = ident_def();
+        node = ident_decl();
         func_def->args_def[i_arg++] = node;
         if (consume(TK_RPARE))
           break;

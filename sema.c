@@ -43,6 +43,16 @@ Node* scale_ptr(NodeKind kind, Node *base, Type *type) {
   return node;
 }
 
+// compute total size of local variables
+int get_lvars_size(LVar *lvars) {
+  LVar* lvar;
+  int size = 0;
+  for (lvar = lvars; lvar; lvar = lvar->next) {
+    size = size + lvar->type->size;
+  }
+  return size;
+}
+
 Node* walk(Node* node) {
   return do_walk(node, true);
 }
@@ -177,6 +187,8 @@ Node* do_walk(Node* node, bool decay) {
 void sema() {
   int i_prog = 0;
   while(prog[i_prog]) {
-    walk(prog[i_prog++]->body);
+    walk(prog[i_prog]->body);
+    prog[i_prog]->locals_size = get_lvars_size(prog[i_prog]->locals);
+    i_prog++;
   }
 }

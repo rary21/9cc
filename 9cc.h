@@ -128,6 +128,8 @@ struct Node {
   Node *init;                  // used in for
   Node *last;                  // used in for
   Node *body;                  // body of function
+  LVar *locals;                // local variables for ND_FUNC_DEF
+  int locals_size;             // total size of local variables
   Node *block[256];            // used to represent block of code
   Node *args_call[MAX_ARGS+1]; // currently, support 6 arguments
   Node *args_def[MAX_ARGS+1];  // currently, support 6 arguments

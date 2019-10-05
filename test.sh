@@ -111,7 +111,7 @@ try 12 \
   }
 "
 
-try 12 \
+try 18 \
 "
   int main() {
     int a[10];
