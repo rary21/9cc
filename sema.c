@@ -12,14 +12,14 @@ bool is_int(Node *node) {
   return node->type->ty == INT;
 }
 void check_int(Node *node) {
-  if (node->type->ty != INT)
+  if (!is_int(node))
     error("got not int\n");
 }
 bool is_ptr(Node *node) {
-  return node->type->ty == PTR;
+  return node->type->ty == PTR || node->type->ty == ARRAY;
 }
 bool check_ptr(Node *node) {
-  if (node->type->ty != PTR)
+  if (!is_ptr(node))
     error("got not ptr\n");
 }
 bool same_type(Node *n1, Node *n2) {
@@ -74,6 +74,7 @@ Node* do_walk(Node* node, bool decay) {
     node->lhs = walk(node->lhs);
     node->rhs = walk(node->rhs);
 
+    fprintf(stderr, "add mid %p %p\n", node->lhs->type, node->rhs->type);
     if (is_ptr(node->lhs) && is_ptr(node->rhs)) {
       error("pointer addition is not supported");
     }

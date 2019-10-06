@@ -114,6 +114,12 @@ Type* new_type_int() {
   return new_type(INT, NULL);
 }
 
+Type* new_type_none() {
+  Type *none = new_type(INT, NULL);
+  none->size = 0;
+  return none;
+}
+
 int consume_ptrs() {
   int cnt = 0;
   while(token->kind == TK_MUL) {
@@ -136,9 +142,10 @@ Type* consume_type() {
       if (ptr_types[i_ptr] == NULL) {
         ptr_types[i_ptr] = calloc(1, sizeof(Type));
         if (i_ptr == 0) {
-          ptr_types[i_ptr]->ty   = INT;
-          ptr_types[i_ptr]->nptr = 0;
-          ptr_types[i_ptr]->size = 4;
+          ptr_types[i_ptr]->ty     = INT;
+          ptr_types[i_ptr]->nptr   = 0;
+          ptr_types[i_ptr]->size   = 4;
+          ptr_types[i_ptr]->ptr_to = NULL;
         } else {
           ptr_types[i_ptr]->ty     = PTR;
           ptr_types[i_ptr]->nptr   = i_ptr;
@@ -161,6 +168,16 @@ bool consume(TokenKind kind) {
                TOKEN_KIND_STR[token->kind]);
   token = token->next;
   return true;
+}
+
+LVar* new_locals() {
+  LVar* lvar = calloc(1, sizeof(LVar));
+  lvar->offset       = 0;
+  lvar->first_elem   = 0;
+  lvar->len          = 0;
+  lvar->name         = NULL;
+  lvar->next         = NULL;
+  lvar->type         = new_type_none();
 }
 
 // return LVar* which has same name, or NULL
@@ -204,18 +221,27 @@ void allocate_ident(Node** _node) {
     new_lvar->name   = node->name;
     new_lvar->next   = locals;
     new_lvar->len    = strlen(node->name);
-    int offset = (node->type->ty == INT)? 4 : 8;
-    if (locals)
-      new_lvar->offset = locals->offset + offset;
-    else
-      new_lvar->offset = offset;
-    if (node->type) {
+
+    if (node->type)
       new_lvar->type = node->type;
-    } else {
+    else
       error("no type found for %s\n", node->name);
+
+    // update locals stack offset
+    new_lvar->offset     = locals->offset + node->type->size;
+
+    // set first offset for array.
+    if (node->type->ty == ARRAY) {
+      node->offset         = locals->offset + node->type->ptr_to->size;
+      new_lvar->first_elem = locals->offset + node->type->ptr_to->size;
+    } else {
+      node->offset         = new_lvar->offset;
+      new_lvar->first_elem = new_lvar->offset;
     }
-    locals           = new_lvar;
-    node->offset = new_lvar->offset;
+
+    fprintf(stderr, "%s offset:%d\n", node->name, node->offset);
+
+    locals = new_lvar;
   }
 }
 
@@ -224,7 +250,7 @@ void get_ident_info(Node** _node) {
   LVar* lvar = find_lvar(node->name, strlen(node->name));
   if (!lvar)
     error("%s is not defined\n", node->name);
-  node->offset = lvar->offset;
+  node->offset = lvar->first_elem;
   node->type   = lvar->type;
 }
 
@@ -289,14 +315,15 @@ void program() {
   int i = 0;
   Node *node, *func;
 
+  locals = new_locals(); // reset new locals
   while (func = func_def()) {
     if (!look_token(TK_LCBRA))
       error("\"{\" Missing after function");
     func->body = statement();  // must be compound statement
     func->locals = locals;
     prog[i++] = func;
-    locals = NULL;  // reset local variables
     debug_print("program: %d\n", i-1);
+    locals = new_locals(); // reset new locals
     if (iseof())
       break;
   }
@@ -369,8 +396,11 @@ Node* ident_decl() {
     Type *type  = consume_type();
     Node *ident = consume_ident();
     if (consume(TK_LBBRA)) {
+      Type *deref_type = new_type(type->ty, type->ptr_to);
+      type->ptr_to     = deref_type;
       type->ty         = ARRAY;
       type->array_size = expect_number();
+      type->size       = type->array_size * type->size;
       expect(TK_RBBRA);
     }
     fprintf(stderr, "size:%d\n", type->size);

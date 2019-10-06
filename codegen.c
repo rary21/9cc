@@ -58,9 +58,12 @@ void gen(Node *node) {
       return;
     case ND_IDENT:
       gen_lval(node);
-      printf("  pop r10\n");
-      printf("  mov rax, [r10]\n");
-      printf("  push rax\n");
+      // generate address for array, otherwise get content of it
+      if (node->type->ty != ARRAY) {
+        printf("  pop r10\n");
+        printf("  mov rax, [r10]\n");
+        printf("  push rax\n");
+      }
       return;
     case ND_ASSIGN:
       gen_lval(node->lhs);
@@ -144,7 +147,9 @@ void gen(Node *node) {
       printf("  mov rbp, rsp\n");
       int lsize = node->locals_size;
       // ensure rsp 16 bytes alignment
-      lsize = lsize + (16 - lsize%16);
+      if ((lsize % 16) != 0) {
+        lsize = lsize + (16 - lsize % 16);
+      }
       printf("  sub rsp, %d\n", lsize);
       // get all arguments
       while (node->args_def[i_arg]) {

@@ -112,6 +112,7 @@ struct LVar {
   char *name;
   int len;
   int offset;
+  int first_elem;
   Type *type;
 };
 

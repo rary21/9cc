@@ -87,37 +87,40 @@ try 75 \
 "
 
 
-# try 6 \
-# "
-#   int main() {
-#     int a;
-#     int *b;
-#     int *cc;
-#     int *c;
-#     alloc4(&cc, 100, 1, 2, 3);
-#     a = 10;
-#     b = &a;
-# 
-#     a = *(cc+1);
-#     return a + *(cc+2) + *(cc+3);
-#   }
-# "
-# 
-# try 12 \
-# "
-#   int main() {
-#     int a;
-#     int *b;
-#     return sizeof b + sizeof a;
-#   }
-# "
-# 
-# try 18 \
-# "
-#   int main() {
-#     int a[10];
-#     int *b;
-#     return sizeof b + sizeof a;
-#   }
-# "
+try 6 \
+"
+  int main() {
+    int a;
+    int *b;
+    int *cc;
+    int *c;
+    alloc4(&cc, 100, 1, 2, 3);
+    a = 10;
+    b = &a;
+
+    a = *(cc+1);
+    return a + *(cc+2) + *(cc+3);
+  }
+"
+
+try 12 \
+"
+  int main() {
+    int a;
+    int *b;
+    return sizeof b + sizeof a;
+  }
+"
+
+try 18 \
+"
+  int main() {
+    int a[10];
+    int *b;
+    *a = 10;
+    *(a+1) = 20;
+    b = a;
+    return *a + *(a+1);
+  }
+"
 echo OK
