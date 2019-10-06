@@ -24,12 +24,35 @@ Node* func_def();
 Node* ident_decl();
 
 Node* new_node(NodeKind, Node*, Node*);
+void allocate_ident(Node** _node);
 
 bool iseof() {
   return token == NULL || token->kind == TK_EOF;
 }
 bool istype() {
   return token->kind == TK_INT;
+}
+
+Type* new_type(int ty, Type *ptr_to) {
+  Type *type = calloc(1, sizeof(Type));
+  type->ty = ty;
+  if (ty == PTR)
+    type->ptr_to = ptr_to;
+  if (ty == INT)
+    type->size = 4;
+  else if (ty == PTR) {
+    type->size = 8;
+  }
+}
+
+Type* new_type_int() {
+  return new_type(INT, NULL);
+}
+
+Type* new_type_none() {
+  Type *none = new_type(INT, NULL);
+  none->size = 0;
+  return none;
 }
 
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
@@ -89,35 +112,16 @@ Node* new_node_for(Node* condition, Node* init, Node* last, Node* statement) {
   return node;
 }
 
-Node* new_node_func_def(char *func_name, Type *type) {
+Node* new_node_func_def(char *func_name, Type *ret_type) {
   debug_print("** new_node : %s\n", NODE_KIND_STR[ND_FUNC_DEF]);
-  Node *node  = calloc(1, sizeof(Node));
+  Node *node      = calloc(1, sizeof(Node));
   node->kind      = ND_FUNC_DEF;
   node->func_name = func_name;
+  node->name      = func_name;
+  node->ret_type  = ret_type;
+  Type *type      = new_type_none();
   node->type      = type;
   return node;
-}
-
-Type* new_type(int ty, Type *ptr_to) {
-  Type *type = calloc(1, sizeof(Type));
-  type->ty = ty;
-  if (ty == PTR)
-    type->ptr_to = ptr_to;
-  if (ty == INT)
-    type->size = 4;
-  else if (ty == PTR) {
-    type->size = 8;
-  }
-}
-
-Type* new_type_int() {
-  return new_type(INT, NULL);
-}
-
-Type* new_type_none() {
-  Type *none = new_type(INT, NULL);
-  none->size = 0;
-  return none;
 }
 
 int consume_ptrs() {
@@ -202,6 +206,7 @@ Node* consume_func_def() {
     strncpy(name, token->str, token->len);
     name[token->len] = '\0';
     Node *node = new_node_func_def(name, type);
+    allocate_ident(&node);
     token = token->next;
     return node;
   }
@@ -264,6 +269,22 @@ Node* consume_ident() {
     node->kind = ND_IDENT;
     token = token->next;
     return node;
+  }
+  return NULL;
+}
+
+Node* expect_ident() {
+  if (token->kind == TK_IDENT) {
+    Node *node = new_node(ND_IDENT, NULL, NULL);
+    char *name = calloc(1, 1 + token->len);
+    strncpy(name, token->str, token->len);
+    name[token->len] = '\0';
+    node->name = name;
+    node->kind = ND_IDENT;
+    token = token->next;
+    return node;
+  } else {
+    error("expect identifier but got %s\n", TOKEN_KIND_STR[token->kind]);
   }
   return NULL;
 }
@@ -394,7 +415,7 @@ Node* ident_decl() {
   debug_put("ident_decl\n");
   if (istype()) {
     Type *type  = consume_type();
-    Node *ident = consume_ident();
+    Node *ident = expect_ident();
     if (consume(TK_LBBRA)) {
       Type *deref_type = new_type(type->ty, type->ptr_to);
       type->ptr_to     = deref_type;
@@ -532,6 +553,7 @@ Node* unary() {
 }
 
 // primary    = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
+//              ident "[" expr "]"
 Node* primary() {
   debug_put("primary\n");
   Node* node;
@@ -567,6 +589,12 @@ Node* primary() {
         expect(TK_COMMA);
       }
       node->args_call[i_arg] = NULL;
+    } else if (consume(TK_LBBRA)) {  // assuming array accsess
+      get_ident_info(&node);
+      Node *add   = new_node(ND_ADD, node, expr());
+      Node *deref = new_node(ND_DEREF, add, NULL);
+      expect(TK_RBBRA);
+      return deref;
     } else {  // assuming ident
       get_ident_info(&node);
       fprintf(stderr, "node->name:%s %d\n", node->name, node->type->size);

@@ -141,6 +141,7 @@ struct Node {
   int val;                     // value when kind is ND_NUM
   int offset;                  // stack offset
   Type *type;                  // type
+  Type *ret_type;              // return type for function
 };
 
 // current token

@@ -89,8 +89,6 @@ Node* do_walk(Node* node, bool decay) {
     }
     fprintf(stderr, "add end %s %d\n", node->lhs->name, node->rhs->val);
     return node;
-  case ND_SUB:
-    return node;
   case ND_MUL:
   case ND_DIV:
     node->lhs = walk(node->lhs);

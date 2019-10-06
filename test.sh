@@ -112,15 +112,18 @@ try 12 \
   }
 "
 
-try 18 \
+try 30 \
 "
+  int sum(int a) {
+    return a;
+  }
   int main() {
     int a[10];
     int *b;
-    *a = 10;
-    *(a+1) = 20;
+    a[0] = 10;
+    a[1] = 20;
     b = a;
-    return *a + *(a+1);
+    return a[0] + a[1];
   }
 "
 echo OK
