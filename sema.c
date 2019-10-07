@@ -66,12 +66,12 @@ Node* walk_nodecay(Node* node) {
 Node* do_walk(Node* node, bool decay) {
   if (node == NULL)
     return NULL;
-  fprintf(stderr, "do_walk: %s %s\n", NODE_KIND_STR[node->kind], node->name);
+  debug_print("do_walk: %s %s\n", NODE_KIND_STR[node->kind], node->name);
   int i_block = 0;
 
   switch (node->kind) {
   case ND_IDENT:
-    fprintf(stderr, "ident size %d %p\n", node->var->type->size, node->var);
+    debug_print("ident size %d %p\n", node->var->type->size, node->var);
     return node;
   case ND_NUM:
     return node;
@@ -83,7 +83,7 @@ Node* do_walk(Node* node, bool decay) {
     }
     lvar_offset = lvar_offset + node->var->type->size;
     node->kind = ND_NONE;  // do nothing after semantic analysys
-    fprintf(stderr, "lvardecl size %d\n", node->var->type->size);
+    debug_print("lvardecl size %d\n", node->var->type->size);
     return node;
   case ND_ARG_DECL:
     if (node->var->type->ty == ARRAY) {
@@ -91,15 +91,15 @@ Node* do_walk(Node* node, bool decay) {
     } else {
       node->var->offset = lvar_offset + node->var->type->size;
     }
-    fprintf(stderr, "arg_decl size %d\n", node->var->type->size);
+    debug_print("arg_decl size %d\n", node->var->type->size);
     lvar_offset = lvar_offset + node->var->type->size;
     return node;
   case ND_ADD:
-    fprintf(stderr, "add start %s %d\n", node->lhs->name, node->rhs->val);
+    debug_print("add start %s %d\n", node->lhs->name, node->rhs->val);
     node->lhs = walk(node->lhs);
     node->rhs = walk(node->rhs);
 
-    fprintf(stderr, "add mid %p %p\n", node->lhs->type, node->rhs->type);
+    debug_print("add mid %p %p\n", node->lhs->type, node->rhs->type);
     if (is_ptr(node->lhs) && is_ptr(node->rhs)) {
       error("pointer addition is not supported");
     }
@@ -112,7 +112,7 @@ Node* do_walk(Node* node, bool decay) {
     } else {
       node->type = new_type_int();
     }
-    fprintf(stderr, "add end %s %d\n", node->lhs->name, node->rhs->val);
+    debug_print("add end %s %d\n", node->lhs->name, node->rhs->val);
     return node;
   case ND_MUL:
   case ND_DIV:
@@ -147,32 +147,32 @@ Node* do_walk(Node* node, bool decay) {
     node->type = new_type_int();
     return node;
   case ND_RETURN:
-    fprintf(stderr, "return start\n");
+    debug_put("return start\n");
     node->lhs = walk(node->lhs);
     node->type = node->lhs->type;
-    fprintf(stderr, "return end\n");
+    debug_put("return end\n");
     return node;
   case ND_DEREF:
-    fprintf(stderr, "deref start\n");
+    debug_put("deref start\n");
     node->lhs = walk(node->lhs);
     check_ptr(node->lhs);
     node->type = node->lhs->type->ptr_to;
-    fprintf(stderr, "deref end\n");
+    debug_put("deref end\n");
     return node;
   case ND_ADDR:
-    fprintf(stderr, "addr start\n");
+    debug_put("addr start\n");
     node->lhs = walk(node->lhs);
     Type *type = new_type(PTR, node->lhs->type);
     node->type = type;
-    fprintf(stderr, "addr end\n");
+    debug_put("addr end\n");
     return node;
   case ND_ASSIGN:
-    fprintf(stderr, "assign start %s %s\n", node->lhs->name, node->rhs->name);
+    debug_print("assign start %s %s\n", node->lhs->name, node->rhs->name);
     node->lhs = walk(node->lhs);
-    fprintf(stderr, "assign mid\n");
+    debug_put("assign mid\n");
     node->rhs = walk(node->rhs);
     node->type = node->lhs->type;
-    fprintf(stderr, "assign end:\n");
+    debug_put("assign end:\n");
     return node;
   case ND_FOR:
     node->init      = walk(node->init);
@@ -190,13 +190,13 @@ Node* do_walk(Node* node, bool decay) {
     node->else_statement = walk(node->else_statement);
     return node;
   case ND_BLOCK:
-    fprintf(stderr, "block start\n");
+    debug_put("block start\n");
     while (node->block[i_block]) {
-      fprintf(stderr, "i_block %d\n", i_block);
+      debug_print("i_block %d\n", i_block);
       node->block[i_block] = walk(node->block[i_block]);
       i_block++;
     }
-    fprintf(stderr, "block end\n");
+    debug_put("block end\n");
     return node;
   case ND_FUNC_CALL:
     while (node->args_call[i_block]) {
@@ -217,7 +217,7 @@ void sema() {
       i_prog++;
     } else if (prog[i_prog]->kind == ND_FUNC_DEF) {
       int i_arg = 0;
-      fprintf(stderr, "sema %d %p\n", i_prog, prog[i_prog]->body);
+      debug_print("sema %d %p\n", i_prog, prog[i_prog]->body);
       lvar_offset = 0;
       while (prog[i_prog]->args_def[i_arg]) {
         prog[i_prog]->args_def[i_arg] = walk(prog[i_prog]->args_def[i_arg]);
@@ -225,7 +225,7 @@ void sema() {
       }
       walk(prog[i_prog]->body);
       prog[i_prog]->locals_size = lvar_offset;
-      fprintf(stderr, "sema %d offset%d\n", i_prog, prog[i_prog]->locals_size);
+      debug_print("sema %d offset%d\n", i_prog, prog[i_prog]->locals_size);
       i_prog++;
     } else {
       error("unexpected toplevel node %s\n", NODE_KIND_STR[prog[i_prog]->kind]);

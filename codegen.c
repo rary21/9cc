@@ -55,13 +55,13 @@ void gen(Node *node) {
   if (node == NULL)
     return ;
 
-  fprintf(stderr, "kind: %s ", NODE_KIND_STR[node->kind]);
+  debug_print("kind: %s ", NODE_KIND_STR[node->kind]);
   if (node->lhs)
-    fprintf(stderr, "l:%s ", NODE_KIND_STR[node->lhs->kind]);
+    debug_print("l:%s ", NODE_KIND_STR[node->lhs->kind]);
   if (node->rhs)
-    fprintf(stderr, "r:%s", NODE_KIND_STR[node->rhs->kind]);
+    debug_print("r:%s", NODE_KIND_STR[node->rhs->kind]);
 
-  fprintf(stderr, "\n");
+  debug_put("\n");
 
   switch (node->kind) {
     case ND_NUM:
@@ -204,7 +204,7 @@ void gen(Node *node) {
   const char *rreg = regs[1];
   if (!same_type(node->lhs, node->rhs) || !same_size(node->lhs, node->rhs))
   {
-    fprintf(stderr, "%s %d\n", node->lhs->name, node->rhs->val);
+    debug_print("%s %d\n", node->lhs->name, node->rhs->val);
     error("not same type\n");
   }
   if (is_32(node->lhs))

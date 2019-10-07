@@ -247,7 +247,7 @@ void allocate_ident(Node** _node) {
     error("%s is already defined\n", node->name);
   } else {
     LVar* new_lvar   = (LVar*)calloc(1, sizeof(LVar));
-    fprintf(stderr, "%s allocated size:%d %p\n", node->name, node->type->size, new_lvar);
+    debug_print("%s allocated size:%d %p\n", node->name, node->type->size, new_lvar);
     new_lvar->name   = node->name;
     new_lvar->next   = env->locals;
     new_lvar->len    = strlen(node->name);
@@ -269,7 +269,7 @@ void get_ident_info(Node** _node) {
     error("%s is not defined\n", node->name);
   node->var  = lvar;
   node->type = lvar->type;
-  fprintf(stderr, "getidentinfo %p\n", lvar);
+  debug_print("getidentinfo %p\n", lvar);
 }
 
 Node* consume_ident() {
@@ -468,10 +468,10 @@ Node* ident_decl() {
       type->size       = type->array_size * type->size;
       expect(TK_RBBRA);
     }
-    fprintf(stderr, "size:%d\n", type->size);
+    debug_print("size:%d\n", type->size);
     ident->type = type;
     allocate_ident(&ident);
-    fprintf(stderr, "alloc end\n");
+    debug_put("alloc end\n");
     return ident;
   }
   return NULL;
@@ -640,7 +640,7 @@ Node* primary() {
       return deref;
     } else {  // assuming ident
       get_ident_info(&node);
-      fprintf(stderr, "node->name:%s %d\n", node->name, node->var->type->size);
+      debug_print("node->name:%s %d\n", node->name, node->var->type->size);
     }
     return node;
   } else {

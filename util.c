@@ -10,7 +10,7 @@ void error(char *fmt, ...) {
 
 
 void print_token(Token *tkn) {
-  fprintf(stderr, "kind: %d value: %d str[0]: %c\n", tkn->kind, tkn->val, tkn->str[0]);
+  debug_print("kind: %d value: %d str[0]: %c\n", tkn->kind, tkn->val, tkn->str[0]);
 }
 
 void print_token_recursive(Token *tkn) {
@@ -21,7 +21,7 @@ void print_token_recursive(Token *tkn) {
 }
 
 void print_node(Node *node) {
-  fprintf(stderr, "kind: %s value: %d\n", NODE_KIND_STR[node->kind], node->val);
+  debug_print("kind: %s value: %d\n", NODE_KIND_STR[node->kind], node->val);
 }
 
 void print_node_recursive(Node *node) {
