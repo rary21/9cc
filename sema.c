@@ -64,6 +64,8 @@ Node* walk_nodecay(Node* node) {
 }
 
 Node* do_walk(Node* node, bool decay) {
+  if (node == NULL)
+    return NULL;
   fprintf(stderr, "do_walk: %s %s\n", NODE_KIND_STR[node->kind], node->name);
   int i_block = 0;
 
@@ -188,11 +190,13 @@ Node* do_walk(Node* node, bool decay) {
     node->else_statement = walk(node->else_statement);
     return node;
   case ND_BLOCK:
+    fprintf(stderr, "block start\n");
     while (node->block[i_block]) {
       fprintf(stderr, "i_block %d\n", i_block);
       node->block[i_block] = walk(node->block[i_block]);
       i_block++;
     }
+    fprintf(stderr, "block end\n");
     return node;
   case ND_FUNC_CALL:
     while (node->args_call[i_block]) {
@@ -209,16 +213,22 @@ Node* do_walk(Node* node, bool decay) {
 void sema() {
   int i_prog = 0;
   while(prog[i_prog]) {
-    int i_arg = 0;
-    fprintf(stderr, "sema %d %p\n", i_prog, prog[i_prog]->body);
-    lvar_offset = 0;
-    while (prog[i_prog]->args_def[i_arg]) {
-      prog[i_prog]->args_def[i_arg] = walk(prog[i_prog]->args_def[i_arg]);
-      i_arg++;
+    if (prog[i_prog]->kind == ND_GVAR_DECL) {
+      i_prog++;
+    } else if (prog[i_prog]->kind == ND_FUNC_DEF) {
+      int i_arg = 0;
+      fprintf(stderr, "sema %d %p\n", i_prog, prog[i_prog]->body);
+      lvar_offset = 0;
+      while (prog[i_prog]->args_def[i_arg]) {
+        prog[i_prog]->args_def[i_arg] = walk(prog[i_prog]->args_def[i_arg]);
+        i_arg++;
+      }
+      walk(prog[i_prog]->body);
+      prog[i_prog]->locals_size = lvar_offset;
+      fprintf(stderr, "sema %d offset%d\n", i_prog, prog[i_prog]->locals_size);
+      i_prog++;
+    } else {
+      error("unexpected toplevel node %s\n", NODE_KIND_STR[prog[i_prog]->kind]);
     }
-    walk(prog[i_prog]->body);
-    prog[i_prog]->locals_size = lvar_offset;
-    fprintf(stderr, "sema %d offset%d\n", i_prog, prog[i_prog]->locals_size);
-    i_prog++;
   }
 }

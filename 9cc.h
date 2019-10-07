@@ -90,7 +90,8 @@ typedef enum {
   ND_ADDR,        // "&"
   ND_DEREF,       // "*"
   ND_SIZEOF,      // sizeof
-  ND_LVAR_DECL,   // variable declaration
+  ND_LVAR_DECL,   // local variable declaration
+  ND_GVAR_DECL,   // global variable declaration
   ND_ARG_DECL,    // function argument declaration
   ND_NONE,        // do nothing
   NUM_NODE_KIND,
@@ -106,6 +107,7 @@ struct Type {
   int nptr;
   int size;
   int array_size;
+  bool is_global;
 };
 
 // local variable

@@ -25,7 +25,17 @@ const char* get_fncdef_reg(int i_arg, Node *node) {
 }
 
 void gen_lval(Node *node) {
-  if (node->kind == ND_IDENT || node->kind == ND_ARG_DECL) {
+  if (node->kind == ND_IDENT) {
+    if (node->type->is_global) {
+      printf("  lea rax, %s[rip]            # generate global lvalue\n", node->name);
+      printf("  push rax\n");
+    } else {
+      int offset = node->var->offset;
+      printf("  mov rax, rbp        # start generate lvalue, offset:%d type:%d\n", offset, node->type->ty);
+      printf("  sub rax, %d\n", offset);
+      printf("  push rax            # end generate lvalue,   offset:%d\n", offset);
+    }
+  } else if (node->kind == ND_ARG_DECL) {
     int offset = node->var->offset;
     printf("  mov rax, rbp        # start generate lvalue, offset:%d type:%d\n", offset, node->type->ty);
     printf("  sub rax, %d\n", offset);
@@ -40,6 +50,7 @@ void gen_lval(Node *node) {
 void gen(Node *node) {
   int i_block = 0;
   int i_arg = 0;
+  int alignment = 0;
 
   if (node == NULL)
     return ;
@@ -176,6 +187,10 @@ void gen(Node *node) {
       gen(node->body);
       printf("# end of function\n");
       return;
+    case ND_GVAR_DECL:
+      alignment = 32; // TODO: compute best alignment
+      printf("  .comm %s,%d,%d\n", node->name, node->type->size, alignment);
+      return;
     case ND_NONE:
       printf("  push 0              # tmp\n");
       return;
@@ -189,7 +204,7 @@ void gen(Node *node) {
   const char *rreg = regs[1];
   if (!same_type(node->lhs, node->rhs) || !same_size(node->lhs, node->rhs))
   {
-    fprintf(stderr, "%s %d %d %d\n", node->lhs->name, node->rhs->val);
+    fprintf(stderr, "%s %d\n", node->lhs->name, node->rhs->val);
     error("not same type\n");
   }
   if (is_32(node->lhs))

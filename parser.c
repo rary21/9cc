@@ -4,7 +4,8 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_EQ", "ND_NE", "ND_LT",
    "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", "ND_RETURN", "ND_IF",
    "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
-   "ND_ADDR", "ND_DEREF", "ND_SIZEOF", "ND_LVAR_DECL", "ND_ARG_DECL", "ND_NONE"};
+   "ND_ADDR", "ND_DEREF", "ND_SIZEOF", "ND_LVAR_DECL", "ND_GVAR_DECL",
+   "ND_ARG_DECL", "ND_NONE"};
 
 Node *prog[100];
 LVar *locals;
@@ -12,6 +13,7 @@ Type *ptr_types[256];
 Env  *env;
 
 void program();
+Node* top();
 Node* statement();
 Node* expr();
 Node* assignment();
@@ -21,7 +23,7 @@ Node* add();
 Node* mul();
 Node* unary();
 Node* primary();
-Node* func_def();
+Node* func_def(Node *node, Type *type);
 Node* ident_decl();
 
 Node* new_node(NodeKind, Node*, Node*);
@@ -152,7 +154,7 @@ int get_size(int ty) {
 
 Type* consume_type() {
   if (!istype())
-    error("no type found\n");
+    return NULL;
 
   Type *type = calloc(1, sizeof(Type));
   type->ty   = consume_type_name();
@@ -169,6 +171,12 @@ Type* consume_type() {
     ptr_cnt = ptr_cnt - 1;
   }
   return type;
+}
+
+Type* expect_type() {
+  if (!istype())
+    error("no type found\n");
+  return consume_type();
 }
 
 // go to next token and return true if current token has same kind
@@ -226,22 +234,6 @@ LVar* find_lvar_current_block(const char* str, int len) {
       continue;
     if (strncmp(lvar->name, str, len) == 0)
       return lvar;
-  }
-  return NULL;
-}
-
-Node* consume_func_def() {
-  if (!istype())
-    error("function definition without return value type");
-  Type *type = consume_type();
-  if (token->kind == TK_IDENT) {
-    char *name = calloc(1, 1 + token->len);
-    strncpy(name, token->str, token->len);
-    name[token->len] = '\0';
-    Node *node = new_node_func_def(name, type);
-    allocate_ident(&node);
-    token = token->next;
-    return node;
   }
   return NULL;
 }
@@ -331,11 +323,17 @@ int expect_number() {
 }
 
 // return true if current token is kind
-bool look_token(TokenKind kind) {
-  return token->kind == kind;
+bool look_token(TokenKind kind, int count) {
+  Token *tkn = token;
+  while (count > 0) {
+    tkn = tkn->next;
+    count = count - 1;
+  }
+  return tkn->kind == kind;
 }
 
-// program    = func_def "{" statement* "}"
+// program    = top*
+// top        = func_def | iden_decl
 // statement  = expr ";" | "return" expr ";""
 //              "if" "(" expr ")" statement ("else" statement)?
 //              "while" "(" expr ")" statement
@@ -355,16 +353,43 @@ bool look_token(TokenKind kind) {
 // args_def   = ident_decl? ("," ident_decl)*
 void program() {
   int i = 0;
-  Node *node, *func;
+  Node *node;
 
   env    = new_env(NULL);
-  while (func = func_def()) {
-    prog[i++] = func;
-    debug_print("program: %d %p\n", i-1, func->body);
+  while (node = top()) {
+    prog[i++] = node;
     if (iseof())
       break;
   }
   prog[i] = NULL;
+}
+
+Node* top() {
+  Node *node;
+  Type *type;
+  type = expect_type();
+  node = consume_ident();
+  if (look_token(TK_LPARE, 0)) {   // function definition
+    node = func_def(node, type);
+  } else if (consume(TK_LBBRA)) {  // global array variable
+    node->kind       = ND_GVAR_DECL;
+    Type *deref_type = new_type(type->ty, type->ptr_to);
+    type->ptr_to     = deref_type;
+    type->ty         = ARRAY;
+    type->array_size = expect_number();
+    type->size       = type->array_size * type->size;
+    type->is_global  = true;
+    expect(TK_RBBRA);
+    expect(TK_SEMICOLON);
+  } else {
+    node->kind       = ND_GVAR_DECL;
+    type->is_global  = true;
+    expect(TK_SEMICOLON);
+  }
+  node->type = type;
+  allocate_ident(&node);
+
+  return node;
 }
 
 // statement  = expr ";" | "return" expr ";""
@@ -625,11 +650,14 @@ Node* primary() {
 
 // func_def   = type ident ("(" args_def ")") "{"
 // args_def   = ident_decl? ("," ident_decl)*
-Node* func_def() {
+Node* func_def(Node *func_def, Type *ret_type) {
   debug_put("fnc_def\n");
-  Node *func_def, *node;
+  Node *node;
 
-  func_def = consume_func_def();
+  func_def->kind      = ND_FUNC_DEF;
+  func_def->func_name = func_def->name;
+  func_def->ret_type  = ret_type;
+  Type *type      = new_type_none();
 
   if (func_def)
   {
@@ -651,7 +679,7 @@ Node* func_def() {
         expect(TK_COMMA);
       }
       func_def->args_def[i_arg] = NULL;
-      if (!look_token(TK_LCBRA))
+      if (!look_token(TK_LCBRA, 0))
         error("function definition must be with {\n");
       func_def->body = statement(); // must be compound statement
       env = env->parent;

@@ -57,3 +57,6 @@ dkms.conf
 # Specific Executables
 9cc
 tmp
+
+# test file
+test/test.*

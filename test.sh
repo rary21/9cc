@@ -7,7 +7,7 @@ try() {
   if [ $? = 0 ]; then
     gcc -g -c -o tmp.o tmp.s
     gcc -g -c -o ./test/foo.o test/foo.c
-    gcc -o tmp tmp.o ./test/foo.o
+    gcc -fPIC -o tmp tmp.o ./test/foo.o
     ./tmp
     actual="$?"
 
@@ -145,6 +145,84 @@ try 55 \
     int a;
     a = sum(10);
     return a;
+  }
+"
+
+try 55 \
+"
+  int glob;
+  int sum() {
+    int cnt;
+    int i;
+    cnt = 0;
+    {
+      int cnt;
+      int i;
+      cnt = 10;
+      i = 10;
+    }
+    for (i = 1; i < glob+1; i=i+1) {
+      cnt = cnt + i;
+    }
+    return cnt;
+  }
+  int main() {
+    glob = 10;
+    int a;
+    a = sum();
+    return a;
+  }
+"
+
+try 99 \
+"
+  int a;
+  int b[10];
+  int *c;
+  int main() {
+    c = b;
+    b[0] = 100;
+    int a;
+    int b;
+    int *c;
+    a = 99;
+    c = &a;
+    return *c;
+  }
+"
+
+try 0 \
+"
+  int a;
+  int b[100];
+  int *c;
+  int isbigger(int b) {
+    if (b > a) {
+      return 1;
+    }
+    return 0;
+  }
+  int main() {
+    a = 100;
+    return isbigger(99);
+  }
+"
+
+try 1 \
+"
+  int a;
+  int b[100];
+  int *c;
+  int isbigger(int b) {
+    if (b > a) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+  int main() {
+    a = 100;
+    return isbigger(101);
   }
 "
 echo OK
