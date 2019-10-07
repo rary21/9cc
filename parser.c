@@ -33,7 +33,7 @@ bool iseof() {
   return token == NULL || token->kind == TK_EOF;
 }
 bool istype() {
-  return token->kind == TK_INT;
+  return token->kind == TK_INT || token->kind == TK_CHAR;
 }
 
 Type* new_type(int ty, Type *ptr_to) {
@@ -43,13 +43,18 @@ Type* new_type(int ty, Type *ptr_to) {
     type->ptr_to = ptr_to;
   if (ty == INT)
     type->size = 4;
-  else if (ty == PTR) {
+  else if (ty == CHAR)
+    type->size = 1;
+  else if (ty == PTR)
     type->size = 8;
-  }
 }
 
 Type* new_type_int() {
   return new_type(INT, NULL);
+}
+
+Type* new_type_char() {
+  return new_type(CHAR, NULL);
 }
 
 Type* new_type_none() {
@@ -141,12 +146,18 @@ int consume_type_name() {
     token = token->next;
     return INT;
   }
+  if (token->kind == TK_CHAR) {
+    token = token->next;
+    return CHAR;
+  }
   error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
 }
 
 int get_size(int ty) {
   if (ty == INT)
     return 4;
+  if (ty == CHAR)
+    return 1;
   if (ty == PTR)
     return 8;
   error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
@@ -156,18 +167,18 @@ Type* consume_type() {
   if (!istype())
     return NULL;
 
-  Type *type = calloc(1, sizeof(Type));
-  type->ty   = consume_type_name();
-  type->size = get_size(type->ty);
+  Type *type  = calloc(1, sizeof(Type));
+  int   ty    = consume_type_name();
+  type->ty    = ty;
+  type->size  = get_size(type->ty);
   int ptr_cnt = consume_ptrs();
+
   while (ptr_cnt > 0) {
     Type *new_type = calloc(1, sizeof(Type));
     new_type->ty     = PTR;
     new_type->size   = get_size(new_type->ty);
     new_type->ptr_to = type;
-
     type = new_type;
-
     ptr_cnt = ptr_cnt - 1;
   }
   return type;

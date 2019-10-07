@@ -50,6 +50,7 @@ typedef enum {
   TK_WHILE,       // while
   TK_FOR,         // for
   TK_INT,         // int
+  TK_CHAR,        // char
   TK_SIZEOF,      // sizeof
   TK_EOF,         // End Of File
   NUM_TOKEN_KIND,
@@ -102,9 +103,8 @@ const char* NODE_KIND_STR[NUM_NODE_KIND];
 
 typedef struct Type Type;
 struct Type {
-  enum {INT, PTR, ARRAY} ty;
+  enum {INT, CHAR, PTR, ARRAY} ty;
   struct Type *ptr_to;
-  int nptr;
   int size;
   int array_size;
   bool is_global;
@@ -180,8 +180,9 @@ Node* new_node(NodeKind kind, Node* lhs, Node* rhs);
 Node* new_node_number(int val);
 Type* new_type(int ty, Type *ptr_to);
 Type* new_type_int();
+Type* new_type_char();
 
-bool same_type(Node *n1, Node *n2);
+bool same_type(Type *t1, Type *t2);
 bool same_size(Node *n1, Node *n2);
 bool is_32(Node *node);
 bool is_8(Node *node);

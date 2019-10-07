@@ -225,4 +225,28 @@ try 1 \
     return isbigger(101);
   }
 "
+
+try 199 \
+"
+  char str[100];
+  int main() {
+    int a;
+    str[1] = 99;
+    str[0] = 100;
+    a = str[0] + str[1];
+    return a;
+  }
+"
+
+try 99 \
+"
+  char str[100];
+  int main() {
+    int a;
+    str[1] = -1;
+    str[0] = 100;
+    a = str[0] + str[1];
+    return a;
+  }
+"
 echo OK

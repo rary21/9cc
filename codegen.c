@@ -202,7 +202,7 @@ void gen(Node *node) {
   printf("  pop %s\n", regs[0]);
   const char *lreg = regs[0];
   const char *rreg = regs[1];
-  if (!same_type(node->lhs, node->rhs) || !same_size(node->lhs, node->rhs))
+  if (!same_type(node->lhs->type, node->rhs->type) || !same_size(node->lhs, node->rhs))
   {
     debug_print("%s %d\n", node->lhs->name, node->rhs->val);
     error("not same type\n");

@@ -24,17 +24,25 @@ bool check_ptr(Node *node) {
   if (!is_ptr(node))
     error("got not ptr\n");
 }
-bool same_type(Node *n1, Node *n2) {
-  if (is_int(n1) && is_int(n2))
-    return true;
-  if (is_int(n1) || is_int(n2))
+bool same_type(Type *t1, Type *t2) {
+  if (t1->ty != t2->ty)
     return false;
-  if (n1->type->nptr == n1->type->nptr)
+
+  switch (t1->ty) {
+  case PTR:
+  case ARRAY:
+    return same_type(t1->ptr_to, t2->ptr_to);
+  default:
     return true;
-  return false;
+  }
 }
 bool same_size(Node *n1, Node *n2) {
   return n1->type->size == n2->type->size;
+}
+
+Node* cast(Node* node, Type* to) {
+  node->type = to;
+  return node;
 }
 
 Node* scale_ptr(NodeKind kind, Node *base, Type *type) {
@@ -114,11 +122,27 @@ Node* do_walk(Node* node, bool decay) {
     }
     debug_print("add end %s %d\n", node->lhs->name, node->rhs->val);
     return node;
+  case ND_SUB:
+    debug_print("sub start %s %d\n", node->lhs->name, node->rhs->val);
+    node->lhs = walk(node->lhs);
+    node->rhs = walk(node->rhs);
+
+    debug_print("sub mid %p %p\n", node->lhs->type, node->rhs->type);
+    if (is_ptr(node->lhs) && is_ptr(node->rhs)) {
+      if (!same_type(node->lhs->type, node->rhs->type))
+        error("pointer subtraction with different type");
+      node       = scale_ptr(ND_DIV, node, node->lhs->type);
+      node->type = node->lhs->type;
+    } else {
+      node->type = new_type_int();
+    }
+    debug_print("sub end %s %d\n", node->lhs->name, node->rhs->val);
+    return node;
   case ND_MUL:
   case ND_DIV:
     node->lhs = walk(node->lhs);
     node->rhs = walk(node->rhs);
-    if(same_type(node->lhs, node->rhs)) {
+    if(same_type(node->lhs->type, node->rhs->type)) {
       node->type = node->lhs->type;
     } else {
       error("mult or div with different type\n");
@@ -130,7 +154,7 @@ Node* do_walk(Node* node, bool decay) {
   case ND_LE:
     node->lhs = walk(node->lhs);
     node->rhs = walk(node->rhs);
-    if(same_type(node->lhs, node->rhs)) {
+    if(same_type(node->lhs->type, node->rhs->type)) {
       node->type = node->lhs->type;
     } else {
       error("comparsion with different type\n");
@@ -171,6 +195,9 @@ Node* do_walk(Node* node, bool decay) {
     node->lhs = walk(node->lhs);
     debug_put("assign mid\n");
     node->rhs = walk(node->rhs);
+    if (is_8(node->lhs)) {
+      node->rhs = cast(node->rhs, new_type_char());
+    }
     node->type = node->lhs->type;
     debug_put("assign end:\n");
     return node;
