@@ -25,10 +25,11 @@ const char* get_fncdef_reg(int i_arg, Node *node) {
 }
 
 void gen_lval(Node *node) {
-  if (node->kind == ND_IDENT) {
-    printf("  mov rax, rbp        # start generate lvalue, offset:%d type:%d\n", node->offset, node->type->ty);
-    printf("  sub rax, %d\n", node->offset);
-    printf("  push rax            # end generate lvalue,   offset:%d\n", node->offset);
+  if (node->kind == ND_IDENT || node->kind == ND_ARG_DECL) {
+    int offset = node->var->offset;
+    printf("  mov rax, rbp        # start generate lvalue, offset:%d type:%d\n", offset, node->type->ty);
+    printf("  sub rax, %d\n", offset);
+    printf("  push rax            # end generate lvalue,   offset:%d\n", offset);
   } else if (node->kind == ND_DEREF) {
     gen(node->lhs);  // node->lhs is ND_IDENT, so we just push value of it.
   } else {
@@ -42,6 +43,14 @@ void gen(Node *node) {
 
   if (node == NULL)
     return ;
+
+  fprintf(stderr, "kind: %s ", NODE_KIND_STR[node->kind]);
+  if (node->lhs)
+    fprintf(stderr, "l:%s ", NODE_KIND_STR[node->lhs->kind]);
+  if (node->rhs)
+    fprintf(stderr, "r:%s", NODE_KIND_STR[node->rhs->kind]);
+
+  fprintf(stderr, "\n");
 
   switch (node->kind) {
     case ND_NUM:
@@ -153,7 +162,7 @@ void gen(Node *node) {
       printf("  sub rsp, %d\n", lsize);
       // get all arguments
       while (node->args_def[i_arg]) {
-        if (node->args_def[i_arg]->kind == ND_IDENT) {
+        if (node->args_def[i_arg]->kind == ND_ARG_DECL) {
           gen_lval(node->args_def[i_arg]);
           const char* reg = get_fncdef_reg(i_arg, node->args_def[i_arg]);
           printf("  pop rax\n");
@@ -161,11 +170,14 @@ void gen(Node *node) {
                  , reg);
           i_arg++;
         } else {
-          error("function definition has arguments not ident");
+          error("function definition has arguments not ident %s\n", NODE_KIND_STR[node->args_def[i_arg]->kind]);
         }
       }
       gen(node->body);
       printf("# end of function\n");
+      return;
+    case ND_NONE:
+      printf("  push 0              # tmp\n");
       return;
   }
 
@@ -175,8 +187,6 @@ void gen(Node *node) {
   printf("  pop %s\n", regs[0]);
   const char *lreg = regs[0];
   const char *rreg = regs[1];
-  fprintf(stderr, "kind: %s l:%s r:%s\n", NODE_KIND_STR[node->kind], NODE_KIND_STR[node->lhs->kind], NODE_KIND_STR[node->rhs->kind]);
-  fprintf(stderr, "%s %d %d\n", node->lhs->name, node->rhs->val, node->rhs->type->size);
   if (!same_type(node->lhs, node->rhs) || !same_size(node->lhs, node->rhs))
   {
     fprintf(stderr, "%s %d %d %d\n", node->lhs->name, node->rhs->val);

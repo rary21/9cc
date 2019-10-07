@@ -24,20 +24,17 @@ try() {
 }
 
 # function call
-try 3 \
+try 55 \
 "
-  int bar() {
-    int aaa;
-    aaa = 3;
-    return aaa;
-  }
   int main() {
     int a;
     int i;
-    a =0;
-    for (i=0;i<10;i=i+1)
+    a = 0;
+    for (i=0;i<10;i=i+1) {
+      int c;
+      c = 0;
       a = a+i+1;
-    a = bar();
+    }
     return a;
   }
 "
@@ -118,12 +115,36 @@ try 30 \
     return a;
   }
   int main() {
-    int a[10];
+    int a[30];
     int *b;
     a[0] = 10;
     a[1] = 20;
     b = a;
     return a[0] + a[1];
+  }
+"
+
+try 55 \
+"
+  int sum(int a) {
+    int cnt;
+    int i;
+    cnt = 0;
+    {
+      int cnt;
+      int i;
+      cnt = 10;
+      i = 10;
+    }
+    for (i = 1; i < a+1; i=i+1) {
+      cnt = cnt + i;
+    }
+    return cnt;
+  }
+  int main() {
+    int a;
+    a = sum(10);
+    return a;
   }
 "
 echo OK

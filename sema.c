@@ -1,5 +1,7 @@
 #include "9cc.h"
 
+int lvar_offset = 0;
+
 Node* do_walk(Node* node, bool decay);
 
 bool is_32(Node *node) {
@@ -67,7 +69,28 @@ Node* do_walk(Node* node, bool decay) {
 
   switch (node->kind) {
   case ND_IDENT:
+    fprintf(stderr, "ident size %d %p\n", node->var->type->size, node->var);
+    return node;
   case ND_NUM:
+    return node;
+  case ND_LVAR_DECL:
+    if (node->var->type->ty == ARRAY) {
+      node->var->offset = lvar_offset + node->var->type->ptr_to->size;
+    } else {
+      node->var->offset = lvar_offset + node->var->type->size;
+    }
+    lvar_offset = lvar_offset + node->var->type->size;
+    node->kind = ND_NONE;  // do nothing after semantic analysys
+    fprintf(stderr, "lvardecl size %d\n", node->var->type->size);
+    return node;
+  case ND_ARG_DECL:
+    if (node->var->type->ty == ARRAY) {
+      node->var->offset = lvar_offset + node->var->type->ptr_to->size;
+    } else {
+      node->var->offset = lvar_offset + node->var->type->size;
+    }
+    fprintf(stderr, "arg_decl size %d\n", node->var->type->size);
+    lvar_offset = lvar_offset + node->var->type->size;
     return node;
   case ND_ADD:
     fprintf(stderr, "add start %s %d\n", node->lhs->name, node->rhs->val);
@@ -186,8 +209,16 @@ Node* do_walk(Node* node, bool decay) {
 void sema() {
   int i_prog = 0;
   while(prog[i_prog]) {
+    int i_arg = 0;
+    fprintf(stderr, "sema %d %p\n", i_prog, prog[i_prog]->body);
+    lvar_offset = 0;
+    while (prog[i_prog]->args_def[i_arg]) {
+      prog[i_prog]->args_def[i_arg] = walk(prog[i_prog]->args_def[i_arg]);
+      i_arg++;
+    }
     walk(prog[i_prog]->body);
-    prog[i_prog]->locals_size = get_lvars_size(prog[i_prog]->locals);
+    prog[i_prog]->locals_size = lvar_offset;
+    fprintf(stderr, "sema %d offset%d\n", i_prog, prog[i_prog]->locals_size);
     i_prog++;
   }
 }

@@ -23,11 +23,14 @@ int main(int argc, char **argv) {
   printf(".global main\n");
   while (prog[i]) {
     debug_print("program processing %d\n", i);
-    gen(prog[i++]);
+    gen(prog[i]);
+    debug_print("program processed %d\n", i);
+    i++;
   }
 
   printf("  mov rsp, rbp\n");
   printf("  pop rbp\n");
   printf("  ret\n");
+  debug_put("compile done.\n");
   return 0;
 }

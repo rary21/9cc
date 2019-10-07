@@ -1,7 +1,11 @@
 #include <stdio.h>
 int main() {
-	int  a[10];
-	int *p;
-	*a = 0;
+	int a;
+	a = 0;
+	{
+		a = 1;
+		int a;
+		a = 2;
+	}
 
 }

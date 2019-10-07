@@ -90,6 +90,9 @@ typedef enum {
   ND_ADDR,        // "&"
   ND_DEREF,       // "*"
   ND_SIZEOF,      // sizeof
+  ND_LVAR_DECL,   // variable declaration
+  ND_ARG_DECL,    // function argument declaration
+  ND_NONE,        // do nothing
   NUM_NODE_KIND,
 } NodeKind;
 
@@ -112,8 +115,13 @@ struct LVar {
   char *name;
   int len;
   int offset;
-  int first_elem;
   Type *type;
+};
+
+typedef struct Env Env;
+struct Env {
+  LVar *locals;
+  Env  *parent;
 };
 
 typedef struct Node Node;
@@ -129,7 +137,6 @@ struct Node {
   Node *init;                  // used in for
   Node *last;                  // used in for
   Node *body;                  // body of function
-  LVar *locals;                // local variables for ND_FUNC_DEF
   int locals_size;             // total size of local variables
   Node *block[256];            // used to represent block of code
   Node *args_call[MAX_ARGS+1]; // currently, support 6 arguments
@@ -140,6 +147,7 @@ struct Node {
   char *func_name;             // function name used in assembly
   int val;                     // value when kind is ND_NUM
   int offset;                  // stack offset
+  LVar *var;                   // variable
   Type *type;                  // type
   Type *ret_type;              // return type for function
 };
@@ -149,6 +157,7 @@ extern Token *token;
 extern Node  *prog[];
 extern LVar  *locals;
 extern Type  *ptr_types[];
+extern Env   *env;
 
 // parser
 Token* tokenize(char *p);

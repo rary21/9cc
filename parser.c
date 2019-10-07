@@ -4,11 +4,12 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_EQ", "ND_NE", "ND_LT",
    "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", "ND_RETURN", "ND_IF",
    "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
-   "ND_ADDR", "ND_DEREF", "ND_SIZEOF"};
+   "ND_ADDR", "ND_DEREF", "ND_SIZEOF", "ND_LVAR_DECL", "ND_ARG_DECL", "ND_NONE"};
 
 Node *prog[100];
 LVar *locals;
 Type *ptr_types[256];
+Env  *env;
 
 void program();
 Node* statement();
@@ -133,33 +134,41 @@ int consume_ptrs() {
   return cnt;
 }
 
+int consume_type_name() {
+  if (token->kind == TK_INT) {
+    token = token->next;
+    return INT;
+  }
+  error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
+}
+
+int get_size(int ty) {
+  if (ty == INT)
+    return 4;
+  if (ty == PTR)
+    return 8;
+  error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
+}
+
 Type* consume_type() {
   if (!istype())
     error("no type found\n");
 
-  token = token->next;
-  int ptr_cnt = consume_ptrs();
   Type *type = calloc(1, sizeof(Type));
-  if (ptr_types[ptr_cnt] == NULL) {
-    int i_ptr;
-    for (i_ptr = 0; i_ptr < ptr_cnt + 1; i_ptr++) {
-      if (ptr_types[i_ptr] == NULL) {
-        ptr_types[i_ptr] = calloc(1, sizeof(Type));
-        if (i_ptr == 0) {
-          ptr_types[i_ptr]->ty     = INT;
-          ptr_types[i_ptr]->nptr   = 0;
-          ptr_types[i_ptr]->size   = 4;
-          ptr_types[i_ptr]->ptr_to = NULL;
-        } else {
-          ptr_types[i_ptr]->ty     = PTR;
-          ptr_types[i_ptr]->nptr   = i_ptr;
-          ptr_types[i_ptr]->size   = 8;
-          ptr_types[i_ptr]->ptr_to = ptr_types[i_ptr - 1];
-        }
-      }
-    }
+  type->ty   = consume_type_name();
+  type->size = get_size(type->ty);
+  int ptr_cnt = consume_ptrs();
+  while (ptr_cnt > 0) {
+    Type *new_type = calloc(1, sizeof(Type));
+    new_type->ty     = PTR;
+    new_type->size   = get_size(new_type->ty);
+    new_type->ptr_to = type;
+
+    type = new_type;
+
+    ptr_cnt = ptr_cnt - 1;
   }
-  return ptr_types[ptr_cnt];
+  return type;
 }
 
 // go to next token and return true if current token has same kind
@@ -177,17 +186,41 @@ bool consume(TokenKind kind) {
 LVar* new_locals() {
   LVar* lvar = calloc(1, sizeof(LVar));
   lvar->offset       = 0;
-  lvar->first_elem   = 0;
   lvar->len          = 0;
   lvar->name         = NULL;
   lvar->next         = NULL;
   lvar->type         = new_type_none();
+  return lvar;
+}
+
+Env* new_env(Env *parent) {
+  Env *env = calloc(1, sizeof(Env));
+  env->parent = parent;
+  env->locals = new_locals();
+  return env;
 }
 
 // return LVar* which has same name, or NULL
 LVar* find_lvar(const char* str, int len) {
+  Env* _env;
   LVar* lvar;
-  for (lvar = locals; lvar; lvar = lvar->next) {
+  for (_env = env; _env; _env = _env->parent) {
+    for (lvar = _env->locals; lvar; lvar = lvar->next) {
+      // skip if name length is diffrent
+      if (lvar->len != len)
+        continue;
+      if (strncmp(lvar->name, str, len) == 0)
+        return lvar;
+    }
+  }
+  return NULL;
+}
+
+// return LVar* which has same name, or NULL only in current block
+LVar* find_lvar_current_block(const char* str, int len) {
+  Env* _env;
+  LVar* lvar;
+  for (lvar = env->locals; lvar; lvar = lvar->next) {
     // skip if name length is diffrent
     if (lvar->len != len)
       continue;
@@ -217,36 +250,23 @@ Node* consume_func_def() {
 // otherwise, return NULL
 void allocate_ident(Node** _node) {
   Node *node = *_node;
-  LVar* lvar = find_lvar(node->name, strlen(node->name));
+  LVar* lvar = find_lvar_current_block(node->name, strlen(node->name));
   if (lvar) {
     error("%s is already defined\n", node->name);
   } else {
-    fprintf(stderr, "%s allocated size:%d\n", node->name, node->type->size);
     LVar* new_lvar   = (LVar*)calloc(1, sizeof(LVar));
+    fprintf(stderr, "%s allocated size:%d %p\n", node->name, node->type->size, new_lvar);
     new_lvar->name   = node->name;
-    new_lvar->next   = locals;
+    new_lvar->next   = env->locals;
     new_lvar->len    = strlen(node->name);
 
     if (node->type)
       new_lvar->type = node->type;
     else
       error("no type found for %s\n", node->name);
-
-    // update locals stack offset
-    new_lvar->offset     = locals->offset + node->type->size;
-
-    // set first offset for array.
-    if (node->type->ty == ARRAY) {
-      node->offset         = locals->offset + node->type->ptr_to->size;
-      new_lvar->first_elem = locals->offset + node->type->ptr_to->size;
-    } else {
-      node->offset         = new_lvar->offset;
-      new_lvar->first_elem = new_lvar->offset;
-    }
-
-    fprintf(stderr, "%s offset:%d\n", node->name, node->offset);
-
-    locals = new_lvar;
+    
+    node->var   = new_lvar;
+    env->locals = new_lvar;
   }
 }
 
@@ -255,8 +275,9 @@ void get_ident_info(Node** _node) {
   LVar* lvar = find_lvar(node->name, strlen(node->name));
   if (!lvar)
     error("%s is not defined\n", node->name);
-  node->offset = lvar->first_elem;
-  node->type   = lvar->type;
+  node->var  = lvar;
+  node->type = lvar->type;
+  fprintf(stderr, "getidentinfo %p\n", lvar);
 }
 
 Node* consume_ident() {
@@ -273,14 +294,14 @@ Node* consume_ident() {
   return NULL;
 }
 
-Node* expect_ident() {
+Node* expect_lvar_decl() {
   if (token->kind == TK_IDENT) {
     Node *node = new_node(ND_IDENT, NULL, NULL);
     char *name = calloc(1, 1 + token->len);
     strncpy(name, token->str, token->len);
     name[token->len] = '\0';
     node->name = name;
-    node->kind = ND_IDENT;
+    node->kind = ND_LVAR_DECL;
     token = token->next;
     return node;
   } else {
@@ -336,15 +357,10 @@ void program() {
   int i = 0;
   Node *node, *func;
 
-  locals = new_locals(); // reset new locals
+  env    = new_env(NULL);
   while (func = func_def()) {
-    if (!look_token(TK_LCBRA))
-      error("\"{\" Missing after function");
-    func->body = statement();  // must be compound statement
-    func->locals = locals;
     prog[i++] = func;
-    debug_print("program: %d\n", i-1);
-    locals = new_locals(); // reset new locals
+    debug_print("program: %d %p\n", i-1, func->body);
     if (iseof())
       break;
   }
@@ -380,6 +396,7 @@ Node* statement() {
     Node *condition = NULL;
     Node *last      = NULL;
     expect(TK_LPARE);
+    env = new_env(env);
     if (!consume(TK_SEMICOLON)) {
       init = expr();
       expect(TK_SEMICOLON);
@@ -392,17 +409,19 @@ Node* statement() {
       last = expr();
     }
     expect(TK_RPARE);
+    env = env->parent;
     node = new_node_for(condition, init, last, statement());
   } else if (consume(TK_LCBRA)) {  // block
     int i_block = 0;
     node = new_node(ND_BLOCK, NULL, NULL);
+    env = new_env(env);
     while (!consume(TK_RCBRA))
       node->block[i_block++] = statement();
+    env = env->parent;
     node->block[i_block] = NULL;
-  } else if (istype()) { // ident definition
-    ident_decl();         // currently, ident_decl() does not output any assembly
-    expect(TK_SEMICOLON);// ident definition ends with semicolon
-    node = statement();
+  } else if (istype()) { // ident declaration
+    node = ident_decl(); // ident declaration will be used in semantic analysys
+    expect(TK_SEMICOLON);// ident declaration ends with semicolon
   } else {
     node = expr();
     expect(TK_SEMICOLON);
@@ -415,7 +434,7 @@ Node* ident_decl() {
   debug_put("ident_decl\n");
   if (istype()) {
     Type *type  = consume_type();
-    Node *ident = expect_ident();
+    Node *ident = expect_lvar_decl();
     if (consume(TK_LBBRA)) {
       Type *deref_type = new_type(type->ty, type->ptr_to);
       type->ptr_to     = deref_type;
@@ -427,9 +446,8 @@ Node* ident_decl() {
     fprintf(stderr, "size:%d\n", type->size);
     ident->type = type;
     allocate_ident(&ident);
+    fprintf(stderr, "alloc end\n");
     return ident;
-  } else {
-    error("ident definition must starts with type\n");
   }
   return NULL;
 }
@@ -597,7 +615,7 @@ Node* primary() {
       return deref;
     } else {  // assuming ident
       get_ident_info(&node);
-      fprintf(stderr, "node->name:%s %d\n", node->name, node->type->size);
+      fprintf(stderr, "node->name:%s %d\n", node->name, node->var->type->size);
     }
     return node;
   } else {
@@ -618,22 +636,25 @@ Node* func_def() {
     debug_print("function %s found\n", func_def->func_name);
     if (consume(TK_LPARE))
     { // assuming function call
-      if (consume(TK_RPARE)) { // if no argument
-        return func_def;
-      }
       int i_arg = 0;
+      env = new_env(env);
       // args_def   = ident_decl? ("," ident_decl)*
       while (i_arg < MAX_ARGS)
       {
         node = ident_decl();
+        if (!node && consume(TK_RPARE))
+          break;
+        node->kind = ND_ARG_DECL;
         func_def->args_def[i_arg++] = node;
         if (consume(TK_RPARE))
           break;
         expect(TK_COMMA);
       }
       func_def->args_def[i_arg] = NULL;
-      if (!look_token(TK_LCBRA))  // function definition needs "{"
-        error("function definition expected, but not \"{\" found");
+      if (!look_token(TK_LCBRA))
+        error("function definition must be with {\n");
+      func_def->body = statement(); // must be compound statement
+      env = env->parent;
       return func_def;
     }
   }
