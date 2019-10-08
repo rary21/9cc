@@ -85,11 +85,7 @@ Node* do_walk(Node* node, bool decay) {
   case ND_LITERAL:
     return node;
   case ND_LVAR_DECL:
-    if (node->var->type->ty == ARRAY) {
-      node->var->offset = lvar_offset + node->var->type->ptr_to->size;
-    } else {
-      node->var->offset = lvar_offset + node->var->type->size;
-    }
+    node->var->offset = lvar_offset + node->var->type->size;
     lvar_offset = lvar_offset + node->var->type->size;
     node->kind = ND_NONE;  // do nothing after semantic analysys
     debug_print("lvardecl size %d\n", node->var->type->size);
@@ -149,6 +145,8 @@ Node* do_walk(Node* node, bool decay) {
       error("mult or div with different type\n");
     }
     return node;
+  case ND_EQ:
+  case ND_NE:
   case ND_GT:
   case ND_GE:
   case ND_LT:
