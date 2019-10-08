@@ -83,7 +83,6 @@ int get_ident_len(char* str) {
 
 // append new token to cur and return pointer to new token
 Token* new_token(Token *cur, TokenKind kind, char **str) {
-  debug_print("** new_token : %s\n", TOKEN_KIND_STR[kind]);
   Token *next = (Token*)calloc(1, sizeof(Token));
   int len;
   if (kind == TK_IDENT)
@@ -94,10 +93,18 @@ Token* new_token(Token *cur, TokenKind kind, char **str) {
   next->kind = kind;
   next->str  = *str;
   next->len  = len;
+
+  char s[256];
+  strncpy(s, *str, len);
+  s[len] = '\0';
+
+  debug_print("** new_token : %s %s\n", TOKEN_KIND_STR[kind], s);
+
   if (kind == TK_NUM)
     next->val  = strtol(*str, str, 10);
   else
     *str = *str + len;
+
   return next;
 }
 
