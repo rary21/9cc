@@ -11,6 +11,9 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 1,        // right braces "}"
 1,        // left braces  "["
 1,        // right braces "]"
+1,        // single quotation
+1,        // double quotation
+1,        // literal
 1,        // "&"
 1,        // digits (must be 1 since this will be used in strncmp)
 2,        // "=="
@@ -36,9 +39,9 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
   {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPARE", "TK_RPARE", "TK_LCBRA", "TK_RCBRA", "TK_LBBRA",
-   "TK_RBBRA", "TK_AND", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", 
-   "TK_ASSIGN", "TK_SEMICOLON", "TK_COMMA", "TK_RETURN", "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_INT",
-   "TK_CHAR", "TK_SIZEOF", "TK_EOF"};
+   "TK_RBBRA", "TK_SQUOT", "TK_DQUOT", "TK_LITERAL", "TK_AND", "TK_NUM", "TK_EQ", "TK_NE", "TK_LT", "TK_LE", "TK_GT",
+   "TK_GE", "TK_IDENT", "TK_ASSIGN", "TK_SEMICOLON", "TK_COMMA", "TK_RETURN", "TK_IF", "TK_ELSE",
+   "TK_WHILE", "TK_FOR", "TK_INT", "TK_CHAR", "TK_SIZEOF", "TK_EOF"};
 
 // return true if c is expected to skip
 bool isskip(const char c) {
@@ -191,6 +194,10 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_RBBRA;
     return true;
   }
+  if (*p == '\'') {
+    *kind = TK_SQUOT;
+    return true;
+  }
   if (isdigit(*p)) {
     *kind = TK_NUM;
     return true;
@@ -226,11 +233,35 @@ Token* tokenize(char *p) {
   TokenKind kind;
   Token head;
   Token *cur = &head;
+  int literal_id = 0;
 
   while (*p) {
     // skip some characters;
     if (isskip(*p)) {
       p++;
+      continue;
+    }
+    if (*p == '\"') {
+      p++;
+      Token *next = (Token*)calloc(1, sizeof(Token));
+      cur->next  = next;
+      next->kind = TK_LITERAL;
+      next->str  = p;
+      printf(".LC%d:\n", literal_id);
+      next->literal_id = literal_id++;
+      cur->next  = next;
+      printf("  .string \"");
+      while (*p != '\"') {
+        putchar(*p);
+        p++;
+      }
+      printf("\"\n");
+      next->len  = p - next->str;
+      p++;
+      cur->next  = next;
+      cur->next  = next;
+      cur = next;
+      debug_print("** new_token : %s\n", TOKEN_KIND_STR[cur->kind]);
       continue;
     }
     if (get_kind(p, &kind)) {

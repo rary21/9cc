@@ -32,6 +32,9 @@ typedef enum {
   TK_RCBRA,       // right braces "}"
   TK_LBBRA,       // left braces  "["
   TK_RBBRA,       // right braces "]"
+  TK_SQUOT,       // single quotation
+  TK_DQUOT,       // double quotation
+  TK_LITERAL,     // literal
   TK_AND,         // "&"
   TK_NUM,         // digits
   TK_EQ,          // "=="
@@ -64,6 +67,7 @@ struct Token {
   int val;        // value when kind is TK_NUM
   char *str;      // string of token
   int len;        // length of *str
+  int literal_id; // literal id
 };
 
 // kind of Node
@@ -80,6 +84,7 @@ typedef enum {
   ND_GT,          // ">
   ND_GE,          // ">=
   ND_IDENT,       // variable
+  ND_LITERAL,     // literal
   ND_ASSIGN,      // assignment "="
   ND_RETURN,      // return
   ND_IF,          // if
@@ -149,6 +154,7 @@ struct Node {
   char *func_name;             // function name used in assembly
   int val;                     // value when kind is ND_NUM
   int offset;                  // stack offset
+  int literal_id;              // literal id
   LVar *var;                   // variable
   Type *type;                  // type
   Type *ret_type;              // return type for function

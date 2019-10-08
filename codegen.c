@@ -35,6 +35,9 @@ void gen_lval(Node *node) {
       printf("  sub rax, %d\n", offset);
       printf("  push rax            # end generate lvalue,   offset:%d\n", offset);
     }
+  } else if (node->kind == ND_LITERAL) {
+    printf("  lea rax, .LC%d            # generate literal\n", node->literal_id);
+    printf("  push rax\n");
   } else if (node->kind == ND_ARG_DECL) {
     int offset = node->var->offset;
     printf("  mov rax, rbp        # start generate lvalue, offset:%d type:%d\n", offset, node->type->ty);
@@ -84,6 +87,9 @@ void gen(Node *node) {
         printf("  mov rax, [r10]\n");
         printf("  push rax\n");
       }
+      return;
+    case ND_LITERAL:
+      gen_lval(node);
       return;
     case ND_ASSIGN:
       gen_lval(node->lhs);
@@ -157,6 +163,7 @@ void gen(Node *node) {
         printf("  pop rax\n");
         printf("  mov %s, rax\n", argregs[i_arg++]);
       }
+      printf("  mov eax, 0     # al represents number of float argument.\n");
       printf("  call %s\n", node->func_name);
       printf("  push rax\n");
       return;

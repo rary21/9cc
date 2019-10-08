@@ -8,6 +8,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  printf(".intel_syntax noprefix\n");
+  printf(".global main\n");
   char* p = argv[1];
   token = tokenize(p);
   // print_token_recursive(token);
@@ -19,8 +21,6 @@ int main(int argc, char **argv) {
   sema();
 
   int i = 0;
-  printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
   while (prog[i]) {
     debug_print("program processing %d\n", i);
     gen(prog[i]);

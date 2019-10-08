@@ -7,7 +7,7 @@ try() {
   if [ $? = 0 ]; then
     gcc -g -c -o tmp.o tmp.s
     gcc -g -c -o ./test/foo.o test/foo.c
-    gcc -fPIC -o tmp tmp.o ./test/foo.o
+    gcc -no-pie -o tmp tmp.o ./test/foo.o
     ./tmp
     actual="$?"
 
@@ -249,4 +249,70 @@ try 99 \
     return a;
   }
 "
+
+try 99 \
+"
+  char str[100];
+  int main() {
+    int a;
+    int b;
+    int c;
+    a = 100;
+    b = 500;
+    c = 5000;
+    str[0] = a;
+    str[1] = -1;
+    str[2] = a;
+    str[3] = -3;
+    a = str[0] + str[1];
+    return a;
+  }
+"
+
+try 97 \
+"
+  char *str;
+  int main() {
+    str = \"abc\";
+    int a;
+    a = str[0];
+    return a;
+  }
+"
+
+try 98 \
+"
+  char *str;
+  int main() {
+    str = \"abc\";
+    int a;
+    a = str[1];
+    return a;
+  }
+"
+
+try 99 \
+"
+  char *str;
+  int main() {
+    str = \"abc\";
+    int a;
+    a = str[2];
+    return a;
+  }
+"
+
+try 99 \
+"
+  int a;
+  char *str;
+  int main() {
+    str = \"abc\";
+    a = 999;
+    printf(\"first printf %d\n\", a);
+    a = str[2];
+    return a;
+  }
+"
+
 echo OK

@@ -82,6 +82,7 @@ Node* do_walk(Node* node, bool decay) {
     debug_print("ident size %d %p\n", node->var->type->size, node->var);
     return node;
   case ND_NUM:
+  case ND_LITERAL:
     return node;
   case ND_LVAR_DECL:
     if (node->var->type->ty == ARRAY) {

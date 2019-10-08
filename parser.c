@@ -2,8 +2,8 @@
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_EQ", "ND_NE", "ND_LT",
-   "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_ASSIGN", "ND_RETURN", "ND_IF",
-   "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
+   "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_LITERAL", "ND_ASSIGN", "ND_RETURN",
+   "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
    "ND_ADDR", "ND_DEREF", "ND_SIZEOF", "ND_LVAR_DECL", "ND_GVAR_DECL",
    "ND_ARG_DECL", "ND_NONE"};
 
@@ -297,6 +297,22 @@ Node* consume_ident() {
   return NULL;
 }
 
+Node* consume_literal() {
+  if (token->kind == TK_LITERAL) {
+    Node *node = new_node(ND_LITERAL, NULL, NULL);
+    char *name = calloc(1, 1 + token->len);
+    strncpy(name, token->str, token->len);
+    name[token->len] = '\0';
+    node->name         = name;
+    node->kind         = ND_LITERAL;
+    node->type         = new_type(PTR, NULL);
+    node->literal_id   = token->literal_id;
+    token = token->next;
+    return node;
+  }
+  return NULL;
+}
+
 Node* expect_lvar_decl() {
   if (token->kind == TK_IDENT) {
     Node *node = new_node(ND_IDENT, NULL, NULL);
@@ -360,6 +376,7 @@ bool look_token(TokenKind kind, int count) {
 // mul        = unary ("*" unary | "/" unary)*
 // unary      = ("+" | "-" | "&" | "*")? primary
 // primary    = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
+//              ident "[" expr "]" | \"characters\"
 // func_def   = ident ("(" args_def ")") "{"
 // args_def   = ident_decl? ("," ident_decl)*
 void program() {
@@ -607,7 +624,7 @@ Node* unary() {
 }
 
 // primary    = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
-//              ident "[" expr "]"
+//              ident "[" expr "]" | \"characters\"
 Node* primary() {
   debug_put("primary\n");
   Node* node;
@@ -624,6 +641,8 @@ Node* primary() {
     } else {
       node = new_node(ND_SIZEOF, unary(), NULL);
     }
+    return node;
+  } else if (node = consume_literal(TK_LITERAL)) { // literal
     return node;
   } else if (node = consume_ident()) {
     debug_print("%s found\n", node->name);
