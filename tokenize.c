@@ -248,6 +248,15 @@ Token* tokenize(char *p) {
       p++;
       continue;
     }
+    if (0 == strncmp(p, "//", 2)) {
+      while (*p && *p++ != '\n');
+      continue;
+    }
+    if (0 == strncmp(p, "/*", 2)) {
+      while (*p && strncmp(p++, "*/", 2));
+      p++;
+      continue;
+    }
     if (*p == '\"') {
       p++;
       Token *next = (Token*)calloc(1, sizeof(Token));
@@ -258,7 +267,7 @@ Token* tokenize(char *p) {
       next->literal_id = literal_id++;
       cur->next  = next;
       printf("  .string \"");
-      while (*p != '\"') {
+      while (*p && *p != '\"') {
         putchar(*p);
         p++;
       }
