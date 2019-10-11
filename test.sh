@@ -357,16 +357,18 @@ try 99 \
   }
 "
 
-try 99 \
+try 97 \
 "
   int a;
+  char **pstr;
   char *str;
   int main() {
+    pstr = &str;
     str = \"abc\";
     a = 999;
     printf(\"first printf %d\n\", a);
     a = str[2];
-    return a;
+    return *pstr[0];
   }
 "
 

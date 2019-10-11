@@ -1,6 +1,29 @@
+#include <errno.h>
 #include "9cc.h"
 
 Token* token;
+
+char* read_file(const char *filename) {
+  FILE *fp = fopen(filename, "r");
+  if (!fp)
+    error("%s : fopen failed %s", filename, strerror(errno));
+
+  if (fseek(fp, 0, SEEK_END) == -1)
+    error("%s : fseek failed %s", filename, strerror(errno));
+  size_t len = ftell(fp);
+  if (fseek(fp, 0, SEEK_SET) == -1)
+    error("%s : fseek failed %s", filename, strerror(errno));
+
+  char *buf = calloc(1, len + 2);
+  fread(buf, len, 1, fp);
+  debug_print("%ld\n", len) ;
+
+  if (len == 0 || buf[len - 1] != '\n')
+    buf[len++] = '\n';
+  buf[len] = '\0';
+  fclose(fp);
+  return buf;
+}
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -10,6 +33,7 @@ int main(int argc, char **argv) {
 
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
+  // char* p = read_file(argv[1]);
   char* p = argv[1];
   token = tokenize(p);
   // print_token_recursive(token);
