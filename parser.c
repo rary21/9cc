@@ -7,6 +7,12 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
    "ND_ADDR", "ND_DEREF", "ND_SIZEOF", "ND_LVAR_DECL", "ND_GVAR_DECL",
    "ND_ARG_DECL", "ND_NONE"};
 
+typedef struct Env Env;
+struct Env {
+  LVar *locals;
+  Env  *parent;
+};
+
 Node *prog[100];
 LVar *locals;
 Type *ptr_types[256];
@@ -212,7 +218,7 @@ LVar* new_locals() {
   return lvar;
 }
 
-Env* new_env(Env *parent) {
+static Env* new_env(Env *parent) {
   Env *env = calloc(1, sizeof(Env));
   env->parent = parent;
   env->locals = new_locals();

@@ -127,12 +127,6 @@ struct LVar {
   Type *type;
 };
 
-typedef struct Env Env;
-struct Env {
-  LVar *locals;
-  Env  *parent;
-};
-
 typedef struct Node Node;
 // Node
 struct Node {
@@ -165,9 +159,7 @@ struct Node {
 // current token
 extern Token *token;
 extern Node  *prog[];
-extern LVar  *locals;
 extern Type  *ptr_types[];
-extern Env   *env;
 
 // parser
 Token* tokenize(char *p);
