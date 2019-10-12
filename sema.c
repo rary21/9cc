@@ -53,16 +53,6 @@ Node* scale_ptr(NodeKind kind, Node *base, Type *type) {
   return node;
 }
 
-// compute total size of local variables
-int get_lvars_size(LVar *lvars) {
-  LVar* lvar;
-  int size = 0;
-  for (lvar = lvars; lvar; lvar = lvar->next) {
-    size = size + lvar->type->size;
-  }
-  return size;
-}
-
 Node* walk(Node* node) {
   return do_walk(node, true);
 }

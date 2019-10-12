@@ -9,12 +9,11 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
 
 typedef struct Env Env;
 struct Env {
-  LVar *locals;
+  Vector *locals;
   Env  *parent;
 };
 
 Node *prog[100];
-LVar *locals;
 Type *ptr_types[256];
 Env  *env;
 
@@ -208,29 +207,19 @@ bool consume(TokenKind kind) {
   return true;
 }
 
-LVar* new_locals() {
-  LVar* lvar = calloc(1, sizeof(LVar));
-  lvar->offset       = 0;
-  lvar->len          = 0;
-  lvar->name         = NULL;
-  lvar->next         = NULL;
-  lvar->type         = new_type_none();
-  return lvar;
-}
-
 static Env* new_env(Env *parent) {
   Env *env = calloc(1, sizeof(Env));
   env->parent = parent;
-  env->locals = new_locals();
+  env->locals = new_vector();
   return env;
 }
 
 // return LVar* which has same name, or NULL
 LVar* find_lvar(const char* str, int len) {
   Env* _env;
-  LVar* lvar;
   for (_env = env; _env; _env = _env->parent) {
-    for (lvar = _env->locals; lvar; lvar = lvar->next) {
+    for (int i = 0; i < _env->locals->len; i++) {
+      LVar *lvar = vector_get(_env->locals, i);
       // skip if name length is diffrent
       if (lvar->len != len)
         continue;
@@ -243,9 +232,8 @@ LVar* find_lvar(const char* str, int len) {
 
 // return LVar* which has same name, or NULL only in current block
 LVar* find_lvar_current_block(const char* str, int len) {
-  Env* _env;
-  LVar* lvar;
-  for (lvar = env->locals; lvar; lvar = lvar->next) {
+  for (int i = 0; i < env->locals->len; i++) {
+    LVar *lvar = vector_get(env->locals, i);
     // skip if name length is diffrent
     if (lvar->len != len)
       continue;
@@ -266,7 +254,6 @@ void allocate_ident(Node** _node) {
     LVar* new_lvar   = (LVar*)calloc(1, sizeof(LVar));
     debug_print("%s allocated size:%d %p\n", node->name, node->type->size, new_lvar);
     new_lvar->name   = node->name;
-    new_lvar->next   = env->locals;
     new_lvar->len    = strlen(node->name);
 
     if (node->type)
@@ -275,7 +262,7 @@ void allocate_ident(Node** _node) {
       error("no type found for %s\n", node->name);
     
     node->var   = new_lvar;
-    env->locals = new_lvar;
+    vector_push(env->locals, new_lvar);
   }
 }
 

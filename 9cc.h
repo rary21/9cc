@@ -120,7 +120,6 @@ struct Type {
 // local variable
 typedef struct LVar LVar;
 struct LVar {
-  LVar *next;
   char *name;
   int len;
   int offset;
@@ -156,6 +155,13 @@ struct Node {
   Type *ret_type;              // return type for function
 };
 
+typedef struct Vector Vector;
+struct Vector {
+  void **elem;
+  int len;
+  int capacity;
+};
+
 // current token
 extern Token *token;
 extern Node  *prog[];
@@ -181,6 +187,9 @@ Node* new_node_number(int val);
 Type* new_type(int ty, Type *ptr_to);
 Type* new_type_int();
 Type* new_type_char();
+Vector *new_vector();
+void vector_push(Vector *vec, void *p);
+void *vector_get(Vector *vec, int i);
 
 bool same_type(Type *t1, Type *t2);
 bool same_size(Node *n1, Node *n2);

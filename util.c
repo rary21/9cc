@@ -33,3 +33,29 @@ void print_node_recursive(Node *node) {
     print_node_recursive(node->rhs);
   }
 }
+
+Vector *new_vector() {
+  // initial vector size is 8
+  int len = 8;
+  Vector *vec   = calloc(1, sizeof(Vector));
+  vec->elem     = calloc(1, len * sizeof(void *));
+  vec->capacity = len;
+  vec->len      = 0;
+
+  return vec;
+}
+
+void vector_push(Vector *vec, void *p) {
+  // expand vector size
+  if (vec->len == vec->capacity) {
+    vec->elem     = realloc(vec->elem, 2 * vec->capacity * sizeof(void *));
+    vec->capacity = 2 * vec->capacity;
+  }
+
+  vec->elem[vec->len] = p;
+  vec->len++;
+}
+
+void *vector_get(Vector *vec, int i) {
+  return vec->elem[i];
+}
