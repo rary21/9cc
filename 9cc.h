@@ -36,6 +36,7 @@ typedef enum {
   TK_DQUOT,       // double quotation
   TK_LITERAL,     // literal
   TK_AND,         // "&"
+  TK_SHARP,       // "#"
   TK_NUM,         // digits
   TK_EQ,          // "=="
   TK_NE,          // "!="
@@ -54,6 +55,7 @@ typedef enum {
   TK_FOR,         // for
   TK_INT,         // int
   TK_CHAR,        // char
+  TK_DEFINE,      // define
   TK_SIZEOF,      // sizeof
   TK_EOF,         // End Of File
   NUM_TOKEN_KIND,
