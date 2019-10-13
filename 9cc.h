@@ -160,15 +160,18 @@ struct Vector {
   void **elem;
   int len;
   int capacity;
+  int index;
 };
 
 // current token
 extern Token *token;
+extern Vector *vec_token;
 extern Node  *prog[];
 extern Type  *ptr_types[];
 
 // parser
 Token* tokenize(char *p);
+Vector *preprocess();
 void program();
 void sema();
 
@@ -188,8 +191,10 @@ Type* new_type(int ty, Type *ptr_to);
 Type* new_type_int();
 Type* new_type_char();
 Vector *new_vector();
-void vector_push(Vector *vec, void *p);
+void *vector_pop_front(Vector *vec);
+void vector_push_back(Vector *vec, void *p);
 void *vector_get(Vector *vec, int i);
+void *vector_get_front(Vector *vec);
 
 bool same_type(Type *t1, Type *t2);
 bool same_size(Node *n1, Node *n2);

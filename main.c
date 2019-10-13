@@ -2,6 +2,7 @@
 #include "9cc.h"
 
 Token* token;
+Vector* vec_token;
 
 char* read_file(const char *filename) {
   FILE *fp = fopen(filename, "r");
@@ -36,7 +37,11 @@ int main(int argc, char **argv) {
   // char* p = read_file(argv[1]);
   char* p = argv[1];
   token = tokenize(p);
+  debug_put("tokenize is done\n");
   // print_token_recursive(token);
+
+  vec_token = preprocess();
+  debug_put("preprocess is done\n");
 
   program();
   // Node* node = expr();

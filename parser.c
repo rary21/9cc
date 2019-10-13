@@ -35,10 +35,31 @@ Node* new_node(NodeKind, Node*, Node*);
 void allocate_ident(Node** _node);
 
 bool iseof() {
+  Token *token = vector_get_front(vec_token);
   return token == NULL || token->kind == TK_EOF;
 }
 bool istype() {
+  Token *token = vector_get_front(vec_token);
   return token->kind == TK_INT || token->kind == TK_CHAR;
+}
+
+static bool consume(TokenKind kind) {
+  Token *token = vector_get_front(vec_token);
+  if (token->kind != kind)
+    return false;
+  // next token
+  debug_print("** consuming token->kind: %s\n",
+               TOKEN_KIND_STR[token->kind]);
+  vector_pop_front(vec_token);
+  return true;
+}
+
+// go to next token and return true if current token has same kind
+// otherwise, throw error and exit application
+static void expect(TokenKind kind) {
+  Token *token = vector_pop_front(vec_token);
+  if (token->kind != kind)
+    error("%s expected, but got %s", TOKEN_KIND_STR[kind], TOKEN_KIND_STR[token->kind]);
 }
 
 Type* new_type(int ty, Type *ptr_to) {
@@ -137,28 +158,65 @@ Node* new_node_func_def(char *func_name, Type *ret_type) {
   return node;
 }
 
+Node* consume_ident() {
+  Token *token = vector_get_front(vec_token);
+  if (token->kind == TK_IDENT) {
+    Node *node = new_node(ND_IDENT, NULL, NULL);
+    char *name = calloc(1, 1 + token->len);
+    strncpy(name, token->str, token->len);
+    name[token->len] = '\0';
+    node->name = name;
+    node->kind = ND_IDENT;
+    token = vector_pop_front(vec_token);
+    return node;
+  }
+  return NULL;
+}
+
+Node* consume_literal() {
+  Token *token = vector_get_front(vec_token);
+  if (token->kind == TK_LITERAL) {
+    Node *node = new_node(ND_LITERAL, NULL, NULL);
+    char *name = calloc(1, 1 + token->len);
+    strncpy(name, token->str, token->len);
+    name[token->len] = '\0';
+    node->name         = name;
+    node->kind         = ND_LITERAL;
+    node->type         = new_type(PTR, NULL);
+    node->literal_id   = token->literal_id;
+    token = vector_pop_front(vec_token);
+    return node;
+  }
+  return NULL;
+}
+
 int consume_ptrs() {
   int cnt = 0;
-  while(token->kind == TK_MUL) {
-    token = token->next;
+  while(1) {
+    Token *token = vector_get_front(vec_token);
+    if (token->kind != TK_MUL)
+      break;
+    vector_pop_front(vec_token);
     cnt++;
   }
   return cnt;
 }
 
 int consume_type_name() {
+  Token *token = vector_get_front(vec_token);
   if (token->kind == TK_INT) {
-    token = token->next;
+    token = vector_pop_front(vec_token);
     return INT;
   }
   if (token->kind == TK_CHAR) {
-    token = token->next;
+    token = vector_pop_front(vec_token);
     return CHAR;
   }
   error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
 }
 
 int get_size(int ty) {
+  Token *token = vector_get_front(vec_token);
   if (ty == INT)
     return 4;
   if (ty == CHAR)
@@ -197,16 +255,6 @@ Type* expect_type() {
 
 // go to next token and return true if current token has same kind
 // otherwise, return false
-bool consume(TokenKind kind) {
-  if (token->kind != kind)
-    return false;
-  // next token
-  debug_print("** consuming token->kind: %s\n",
-               TOKEN_KIND_STR[token->kind]);
-  token = token->next;
-  return true;
-}
-
 static Env* new_env(Env *parent) {
   Env *env = calloc(1, sizeof(Env));
   env->parent = parent;
@@ -262,7 +310,7 @@ void allocate_ident(Node** _node) {
       error("no type found for %s\n", node->name);
     
     node->var   = new_lvar;
-    vector_push(env->locals, new_lvar);
+    vector_push_back(env->locals, new_lvar);
   }
 }
 
@@ -276,37 +324,8 @@ void get_ident_info(Node** _node) {
   debug_print("getidentinfo %p\n", lvar);
 }
 
-Node* consume_ident() {
-  if (token->kind == TK_IDENT) {
-    Node *node = new_node(ND_IDENT, NULL, NULL);
-    char *name = calloc(1, 1 + token->len);
-    strncpy(name, token->str, token->len);
-    name[token->len] = '\0';
-    node->name = name;
-    node->kind = ND_IDENT;
-    token = token->next;
-    return node;
-  }
-  return NULL;
-}
-
-Node* consume_literal() {
-  if (token->kind == TK_LITERAL) {
-    Node *node = new_node(ND_LITERAL, NULL, NULL);
-    char *name = calloc(1, 1 + token->len);
-    strncpy(name, token->str, token->len);
-    name[token->len] = '\0';
-    node->name         = name;
-    node->kind         = ND_LITERAL;
-    node->type         = new_type(PTR, NULL);
-    node->literal_id   = token->literal_id;
-    token = token->next;
-    return node;
-  }
-  return NULL;
-}
-
 Node* expect_lvar_decl() {
+  Token *token = vector_get_front(vec_token);
   if (token->kind == TK_IDENT) {
     Node *node = new_node(ND_IDENT, NULL, NULL);
     char *name = calloc(1, 1 + token->len);
@@ -314,7 +333,7 @@ Node* expect_lvar_decl() {
     name[token->len] = '\0';
     node->name = name;
     node->kind = ND_LVAR_DECL;
-    token = token->next;
+    token = vector_pop_front(vec_token);
     return node;
   } else {
     error("expect identifier but got %s\n", TOKEN_KIND_STR[token->kind]);
@@ -322,33 +341,23 @@ Node* expect_lvar_decl() {
   return NULL;
 }
 
-// go to next token and return true if current token has same kind
-// otherwise, throw error and exit application
-void expect(TokenKind kind) {
-  if (token->kind != kind)
-    error("%s expected, but got %s", TOKEN_KIND_STR[kind], TOKEN_KIND_STR[token->kind]);
-  // next token
-  token = token->next;
-}
-
 // go to next token and return value if current token is TK_NUM
 // otherwise, throw error and exit application
 int expect_number() {
+  Token *token = vector_get_front(vec_token);
   if (token->kind != TK_NUM)
     error("number expected, but got %s", TOKEN_KIND_STR[token->kind]);
   // next token
   int value = token->val;
-  token = token->next;
+  token = vector_pop_front(vec_token);
   return value;
 }
 
 // return true if current token is kind
 bool look_token(TokenKind kind, int count) {
-  Token *tkn = token;
-  while (count > 0) {
-    tkn = tkn->next;
-    count = count - 1;
-  }
+  Token *tkn;
+  tkn = vec_token->elem[vec_token->index + count];
+
   return tkn->kind == kind;
 }
 
@@ -635,7 +644,7 @@ Node* primary() {
       node = new_node(ND_SIZEOF, unary(), NULL);
     }
     return node;
-  } else if (node = consume_literal(TK_LITERAL)) { // literal
+  } else if (node = consume_literal()) { // literal
     return node;
   } else if (node = consume_ident()) {
     debug_print("%s found\n", node->name);

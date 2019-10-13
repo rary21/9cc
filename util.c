@@ -45,7 +45,7 @@ Vector *new_vector() {
   return vec;
 }
 
-void vector_push(Vector *vec, void *p) {
+void vector_push_back(Vector *vec, void *p) {
   // expand vector size
   if (vec->len == vec->capacity) {
     vec->elem     = realloc(vec->elem, 2 * vec->capacity * sizeof(void *));
@@ -56,6 +56,16 @@ void vector_push(Vector *vec, void *p) {
   vec->len++;
 }
 
+void *vector_pop_front(Vector *vec) {
+  if (vec->index > vec->len)
+    return NULL;
+  return vec->elem[vec->index++];
+}
+
 void *vector_get(Vector *vec, int i) {
   return vec->elem[i];
+}
+
+void *vector_get_front(Vector *vec) {
+  return vec->elem[vec->index];
 }
