@@ -401,10 +401,19 @@ try 50 \
   #define SUB(a, b) a-b
 
   int main() {
-    int aa;
-    int bb;
-    aa = 100;
-    bb = 50;
+    int aa = 100;
+    int bb = 50;
+    return SUB(aa,bb);
+  }
+"
+
+try 0 \
+"
+  #define SUB(a, b) a-b
+
+  int main() {
+    int aa = 100;
+    int bb = aa;
     return SUB(aa,bb);
   }
 "

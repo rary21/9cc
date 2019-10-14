@@ -4,7 +4,7 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_EQ", "ND_NE", "ND_LT",
    "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_LITERAL", "ND_ASSIGN", "ND_RETURN",
    "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
-   "ND_ADDR", "ND_DEREF", "ND_SIZEOF", "ND_LVAR_DECL", "ND_GVAR_DECL",
+   "ND_ADDR", "ND_DEREF", "ND_SIZEOF", "ND_LVAR_DECL", "ND_LVAR_INIT", "ND_GVAR_DECL",
    "ND_ARG_DECL", "ND_NONE"};
 
 typedef struct Env Env;
@@ -29,6 +29,7 @@ Node* mul();
 Node* unary();
 Node* primary();
 Node* func_def(Node *node, Type *type);
+Node* ident_init();
 Node* ident_decl();
 
 Node* new_node(NodeKind, Node*, Node*);
@@ -368,8 +369,10 @@ bool look_token(TokenKind kind, int count) {
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
 //              "{" statement* "}"
-//              ident_decl
-// ident_decl = "int" "*"* ident
+//              ident_init
+// ident_init = ident_decl ("=" assignment)?
+// ident_decl = type "*"* ident ("[" num "]")?
+// type       = int | char
 // expr       = assignment
 // assignment = equality ("=" assignment)*
 // equality   = relational ("==" relational | "!=" relational)*
@@ -427,7 +430,7 @@ Node* top() {
 //              "while" "(" expr ")" statement
 //              "for" "(" expr? ";" expr? ";" expr? ")" statement
 //              "{" statement* "}"
-//              ident_decl
+//              ident_init
 Node* statement() {
   debug_put("statement\n");
   Node *node;
@@ -475,7 +478,7 @@ Node* statement() {
     env = env->parent;
     node->block[i_block] = NULL;
   } else if (istype()) { // ident declaration
-    node = ident_decl(); // ident declaration will be used in semantic analysys
+    node = ident_init();  // ident declaration will be used in semantic analysys
     expect(TK_SEMICOLON);// ident declaration ends with semicolon
   } else {
     node = expr();
@@ -484,7 +487,23 @@ Node* statement() {
   return node;
 }
 
-// ident_decl  = "int" "*"* ident ("[" num "]")?
+// ident_init  = ident_decl ("=" assignment)?
+Node* ident_init() {
+  debug_put("ident_init\n");
+  Node *ident = ident_decl();
+  if (consume(TK_ASSIGN)) {
+    Node *lvar = new_node(ND_IDENT, NULL, NULL);
+    lvar->name = ident->name;
+    get_ident_info(&lvar);
+    Node *init = expr();
+    Node *assign = new_node(ND_ASSIGN, lvar, init);
+    Node *node   = new_node(ND_LVAR_INIT, ident, assign);
+    return node;
+  }
+  return ident;
+}
+
+// ident_decl  = type "*"* ident ("[" num "]")?
 Node* ident_decl() {
   debug_put("ident_decl\n");
   if (istype()) {

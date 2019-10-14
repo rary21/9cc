@@ -74,6 +74,11 @@ Node* do_walk(Node* node, bool decay) {
   case ND_NUM:
   case ND_LITERAL:
     return node;
+  case ND_LVAR_INIT:
+    node->lhs = walk(node->lhs);
+    node->rhs = walk(node->rhs);
+    node = node->rhs; // rhs is assingment
+    return node;
   case ND_LVAR_DECL:
     node->var->offset = lvar_offset + node->var->type->size;
     lvar_offset = lvar_offset + node->var->type->size;

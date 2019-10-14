@@ -101,6 +101,7 @@ typedef enum {
   ND_DEREF,       // "*"
   ND_SIZEOF,      // sizeof
   ND_LVAR_DECL,   // local variable declaration
+  ND_LVAR_INIT,   // local variable initialize
   ND_GVAR_DECL,   // global variable declaration
   ND_ARG_DECL,    // function argument declaration
   ND_NONE,        // do nothing
