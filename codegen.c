@@ -114,6 +114,7 @@ void gen(Node *node) {
       printf("  cmp rax, 0\n");
       printf("  push 0              # tmp\n");
       printf("  je %s\n", node->label_e);
+      printf("  pop r10             # tmp\n");
       gen(node->if_statement);
       printf("  jmp %s\n", node->label_s);
       printf("%s:\n", node->label_e);

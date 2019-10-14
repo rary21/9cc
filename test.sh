@@ -418,4 +418,24 @@ try 0 \
   }
 "
 
+try 0 \
+"
+#define EXPECT(expected, expr)                                    \
+  {                                                               \
+    int e1 = (expected);                                          \
+    int e2 = (expr);                                              \
+    if (e1 == e2) {                                               \
+      printf(\"%d => %d\n\", e1, e2);                             \
+    } else {                                                      \
+      printf(\"%d expected, but got %d\n\", e1, e2);              \
+      exit(1);                                                    \
+    }                                                             \
+  }
+
+  int main () {
+    EXPECT(1, 1)
+    return 0;
+  }
+"
+
 echo OK
