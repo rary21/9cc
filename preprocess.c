@@ -14,6 +14,7 @@ struct Env {
 };
 
 Env *env;
+Vector *g_vec;
 
 Env* new_env() {
   Env *env = calloc(1, sizeof(Env));
@@ -31,6 +32,10 @@ static bool consume(TokenKind kind) {
   return true;
 }
 
+void emit(void *p) {
+  vector_push_back(g_vec, p);
+}
+
 // go to next token and return true if current token has same kind
 // otherwise, throw error and exit application
 static void expect(TokenKind kind) {
@@ -40,6 +45,15 @@ static void expect(TokenKind kind) {
   token = token->next;
 }
 
+Vector *get_tokens_until_newline() {
+  Vector *vec = new_vector();
+  while (token->kind != TK_NEWLINE) {
+    vector_push_back(vec, token);
+    token = token->next;
+  }
+  return vec;
+}
+
 void generate_define_macro() {
   if (token->kind != TK_IDENT)
     error("generate_define_macro %d got %s", __LINE__, TOKEN_KIND_STR[token->kind]);
@@ -47,7 +61,6 @@ void generate_define_macro() {
   macro->identifier = token;
   token = token->next;
 
-  Token *identifier;
   if (token->kind == TK_LPARE) {
     token = token->next;
     macro->with_param = true;
@@ -57,30 +70,21 @@ void generate_define_macro() {
     }
     macro->params = params;
 
-    macro->replacement = token;
     Vector *replacement = new_vector();
     vector_push_back(replacement, token);
-    macro->replacement = replacement;
+    macro->replacement = get_tokens_until_newline();
+    token = token->next;
 
   } else {
     macro->with_param = false;
-    if (token->kind != TK_IDENT)
-      error("generate_define_macro %d got %s", __LINE__, TOKEN_KIND_STR[token->kind]);
-    macro->identifier = token;
-    token = token->next;
-    if (token->kind != TK_IDENT)
-      error("generate_define_macro %d got %s", __LINE__, TOKEN_KIND_STR[token->kind]);
-    Vector *replacement = new_vector();
-    vector_push_back(replacement, token);
-    macro->replacement = replacement;
-    token = token->next;
+    macro->replacement = get_tokens_until_newline();
   }
 
   vector_push_back(env->macros, macro);
 }
 
 void generate_macro() {
-  if (token->kind == TK_IDENT && strncmp(token->str, "define", token->len)) {
+  if (token->kind == TK_DEFINE) {
     token = token->next;
     generate_define_macro();
   } else {
@@ -88,27 +92,50 @@ void generate_macro() {
   }
 }
 
-bool is_macro_defined() {
+void apply_macro(Macro *macro) {
+  Vector *replacement = macro->replacement;
+  for (int i = 0; i < replacement->len; i++) {
+    emit(vector_get(replacement, i));
+  }
+  token = token->next;
+}
+
+bool apply_if_defined() {
   if (token->kind != TK_IDENT)
     return false;
-
+  for (int i = 0; i < env->macros->len; i++) {
+    Macro *macro = vector_get(env->macros, i);
+    Token *identifier = macro->identifier;
+    if (identifier->len == token->len) {
+      if (0 == strncmp(identifier->str, token->str, token->len)) {
+        apply_macro(macro);
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 Vector *preprocess() {
-  Vector *vec = new_vector();
+  g_vec = new_vector();
 
   env = new_env();
   while(token) {
-    // if (consume(TK_SHARP)) {
-    //   generate_macro();
-    // }
-    // if (is_macro_defined()) {
-
-    // }
-    vector_push_back(vec, token);
+    if (token->kind == TK_NEWLINE) {
+      token = token->next;
+      continue;
+    }
+    if (consume(TK_SHARP)) {
+      generate_macro();
+      continue;
+    }
+    if (apply_if_defined()) {
+      continue;
+    }
+    emit(token);
     
     token = token->next;
   }
 
-  return vec;
+  return g_vec;
 }

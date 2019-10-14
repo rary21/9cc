@@ -372,4 +372,38 @@ try 97 \
   }
 "
 
+try 97 \
+"
+  #define DEFAULT 13
+  int a;
+  char **pstr;
+  char *str;
+  int main() {
+    pstr = &str;
+    str = \"abc\";
+    a = DEFAULT;
+    printf(\"first printf %d\n\", a);
+    a = str[2];
+    return *pstr[0];
+  }
+"
+
+try 6 \
+"
+  #define ADD 1 + 2 + 3
+  int main() {
+    return ADD;
+  }
+"
+
+try 14 \
+"
+  #define ADD 1 + 2 * 4 \
+            + 2 + 3\
+
+  int main() {
+    return ADD;
+  }
+"
+
 echo OK

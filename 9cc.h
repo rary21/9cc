@@ -37,6 +37,8 @@ typedef enum {
   TK_LITERAL,     // literal
   TK_AND,         // "&"
   TK_SHARP,       // "#"
+  TK_BACKSLASH,   // "\\"
+  TK_NEWLINE,     // "\n"
   TK_NUM,         // digits
   TK_EQ,          // "=="
   TK_NE,          // "!="
