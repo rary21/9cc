@@ -72,6 +72,11 @@ struct Token {
   char *str;      // string of token
   int len;        // length of *str
   int literal_id; // literal id
+
+  // for error report
+  char *start;
+  char *end;
+  char *buf;
 };
 
 // kind of Node
@@ -188,6 +193,7 @@ void print_token_recursive(Token *tkn);
 void print_node(Node *node);
 void print_node_recursive(Node *node);
 
+Token* new_token(Token *cur, TokenKind kind, char **str);
 Node* new_node(NodeKind kind, Node* lhs, Node* rhs);
 Node* new_node_number(int val);
 Type* new_type(int ty, Type *ptr_to);
@@ -203,5 +209,7 @@ bool same_type(Type *t1, Type *t2);
 bool same_size(Node *n1, Node *n2);
 bool is_32(Node *node);
 bool is_8(Node *node);
+
+int get_line_number(Token *tkn);
 
 #endif

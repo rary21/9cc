@@ -114,7 +114,7 @@ void generate_macro() {
   if (consume(TK_DEFINE)) {
     generate_define_macro();
   } else {
-    error("unsupported directive %s", token->str);
+    error("line:%d unsupported directive %s", get_line_number(token), token->str);
   }
 }
 
@@ -177,6 +177,20 @@ bool apply_if_defined() {
   return false;
 }
 
+bool apply_special_macro() {
+  if (token->kind != TK_IDENT)
+    return false;
+  if (0 == strncmp(token->str, "__LINE__", 8)) {
+    Token *line = calloc(1, sizeof(Token));
+    line->kind = TK_NUM;
+    line->val  = get_line_number(token);
+    emit(line);
+    token = token->next;
+    return true;
+  }
+  return false;
+}
+
 Vector *preprocess() {
   g_vec = new_vector();
 
@@ -191,6 +205,9 @@ Vector *preprocess() {
       continue;
     }
     if (apply_if_defined()) {
+      continue;
+    }
+    if (apply_special_macro()) {
       continue;
     }
     emit(token);

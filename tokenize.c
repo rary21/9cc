@@ -47,6 +47,19 @@ const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
    "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN", "TK_SEMICOLON", "TK_COMMA", "TK_RETURN",
    "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_INT", "TK_CHAR", "TK_DEFINE", "TK_SIZEOF", "TK_EOF"};
 
+typedef struct Env Env;
+struct Env {
+  char *buf;
+};
+
+Env *env;
+
+static Env* new_env(char* buf) {
+  Env *env = calloc(1, sizeof(Env));
+  env->buf = buf;
+  return env;
+}
+
 // return true if c is expected to skip
 bool isskip(const char c) {
   // don't skip newline
@@ -73,11 +86,14 @@ bool isoperation(const char c) {
 bool is_alnum(const char c) {
   return isalnum(c) || c == '_';
 }
+bool is_alpha(const char c) {
+  return isalnum(c) || c == '_';
+}
 
 int get_ident_len(char* str) {
   int i = 0;
-  // ident must starts with alphabet
-  if (!isalpha(str[0]))
+  // ident must starts with alphabet or underscore
+  if (!is_alpha(str[0]))
     return 0;
 
   for (i = 1; str[i]; i++) {
@@ -88,6 +104,15 @@ int get_ident_len(char* str) {
   return i;
 }
 
+int get_line_number(Token *tkn) {
+  int line_cnt = 1;
+  for (char *p = tkn->buf; p != tkn->end; p++) {
+    if (*p == '\n')
+      line_cnt++;
+  }
+  return line_cnt;
+}
+
 // append new token to cur and return pointer to new token
 Token* new_token(Token *cur, TokenKind kind, char **str) {
   Token *next = (Token*)calloc(1, sizeof(Token));
@@ -96,21 +121,23 @@ Token* new_token(Token *cur, TokenKind kind, char **str) {
     len = get_ident_len(*str);
   else
     len = TK_LEN_OF_KIND[kind];
-  cur->next  = next;
-  next->kind = kind;
-  next->str  = *str;
-  next->len  = len;
+  cur->next   = next;
+  next->kind  = kind;
+  next->str   = *str;
+  next->len   = len;
+  next->start = *str;
+  next->buf   = env->buf;
 
   char s[256];
   strncpy(s, *str, len);
   s[len] = '\0';
-
   debug_print("** new_token : %s %s\n", TOKEN_KIND_STR[kind], s);
 
   if (kind == TK_NUM)
     next->val  = strtol(*str, str, 10);
   else
     *str = *str + len;
+  next->end   = *str;
 
   return next;
 }
@@ -252,7 +279,7 @@ bool get_kind(char *p, TokenKind *kind) {
     *kind = TK_COMMA;
     return true;
   }
-  if (isalpha(*p)) {
+  if (is_alnum(*p)) {
     *kind = TK_IDENT;
     return true;
   }
@@ -289,12 +316,8 @@ Token* tokenize(char *q) {
   p = calloc(1, len + 1);
 
   copy_and_replace_backslash(p, q);
-  char *t = p;
-  while (*t) {
-    debug_print("%c", *t);
-    t++;
-  }
-  debug_put("\n");
+
+  env = new_env(p);
 
   while (*p) {
     // skip some characters;
@@ -314,9 +337,11 @@ Token* tokenize(char *q) {
     if (*p == '\"') {
       p++;
       Token *next = (Token*)calloc(1, sizeof(Token));
-      cur->next  = next;
-      next->kind = TK_LITERAL;
-      next->str  = p;
+      cur->next   = next;
+      next->kind  = TK_LITERAL;
+      next->str   = p;
+      next->start = p;
+      next->buf   = env->buf;
       printf(".LC%d:\n", literal_id);
       next->literal_id = literal_id++;
       cur->next  = next;
@@ -326,7 +351,8 @@ Token* tokenize(char *q) {
         p++;
       }
       printf("\"\n");
-      next->len  = p - next->str;
+      next->len = p - next->str;
+      next->end = p;
       p++;
       cur->next  = next;
       cur = next;

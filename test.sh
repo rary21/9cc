@@ -37,7 +37,6 @@ int printQueen(int *queen)
     return 0;
 }
 
-
 int check(int *queen)
 {
     int i;
@@ -434,6 +433,17 @@ try 0 \
 
   int main () {
     EXPECT(1, 1)
+    return 0;
+  }
+"
+
+try 0 \
+" int main () {
+    printf(\"%d\\n\", __LINE__);
+    printf(\"%d\\n\", __LINE__);
+    printf(\"%d\\n\", __LINE__);
+    printf(\"%d\\n\", __LINE__);
+    printf(\"%d\\n\", __LINE__);
     return 0;
   }
 "
