@@ -329,7 +329,6 @@ Token* tokenize(char *q) {
       next->len  = p - next->str;
       p++;
       cur->next  = next;
-      cur->next  = next;
       cur = next;
       debug_print("** new_token : %s\n", TOKEN_KIND_STR[cur->kind]);
       continue;

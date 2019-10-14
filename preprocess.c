@@ -45,11 +45,48 @@ static void expect(TokenKind kind) {
   token = token->next;
 }
 
-Vector *get_tokens_until_newline() {
+Vector *get_tokens_until(TokenKind kind) {
   Vector *vec = new_vector();
-  while (token->kind != TK_NEWLINE) {
+  while (token->kind != kind) {
     vector_push_back(vec, token);
     token = token->next;
+  }
+  token = token->next;
+  return vec;
+}
+
+Vector *get_tokens_until_newline() {
+  Vector *vec = get_tokens_until(TK_NEWLINE);
+  return vec;
+}
+
+Vector *get_arguments_definition() {
+  Vector *vec = new_vector();
+  while (1) {
+    if (token->kind != TK_IDENT) {
+      char str[256];
+      strncpy(str, token->str, token->len);
+      error("\"%s\" may not appear in macro parameter list", str);
+    }
+    vector_push_back(vec, token);
+    token = token->next;
+    if (!consume(TK_COMMA)) {
+      expect(TK_RPARE);
+      break;
+    }
+  }
+  return vec;
+}
+
+Vector *get_arguments() {
+  Vector *vec = new_vector();
+  while (1) {
+    vector_push_back(vec, token);
+    token = token->next;
+    if (!consume(TK_COMMA)) {
+      expect(TK_RPARE);
+      break;
+    }
   }
   return vec;
 }
@@ -61,20 +98,10 @@ void generate_define_macro() {
   macro->identifier = token;
   token = token->next;
 
-  if (token->kind == TK_LPARE) {
-    token = token->next;
+  if (consume(TK_LPARE)) {
     macro->with_param = true;
-    Vector *params    = new_vector();
-    while(consume(TK_RPARE)) {
-      vector_push_back(params, token);
-    }
-    macro->params = params;
-
-    Vector *replacement = new_vector();
-    vector_push_back(replacement, token);
+    macro->params = get_arguments_definition();
     macro->replacement = get_tokens_until_newline();
-    token = token->next;
-
   } else {
     macro->with_param = false;
     macro->replacement = get_tokens_until_newline();
@@ -84,20 +111,54 @@ void generate_define_macro() {
 }
 
 void generate_macro() {
-  if (token->kind == TK_DEFINE) {
-    token = token->next;
+  if (consume(TK_DEFINE)) {
     generate_define_macro();
   } else {
     error("unsupported directive %s", token->str);
   }
 }
 
-void apply_macro(Macro *macro) {
-  Vector *replacement = macro->replacement;
-  for (int i = 0; i < replacement->len; i++) {
-    emit(vector_get(replacement, i));
+int get_param_index(Vector *params, Token *tkn) {
+  for (int i = 0; i < params->len; i++) {
+    Token *_tkn = vector_get(params, i);
+    if (tkn->len != _tkn->len)
+      continue;
+    if (0 == strncmp(tkn->str, _tkn->str, tkn->len))
+      return i;
   }
+  return -1;
+}
+
+void apply_macro(Macro *macro) {
+  Vector *macro_params = macro->params;
+  Vector *replacement  = macro->replacement;
+
   token = token->next;
+  if (macro->with_param) {
+    expect(TK_LPARE);
+    Vector *params = get_arguments();
+    if (params->len != macro_params->len) {
+      char str[256];
+      strncpy(str, macro->identifier->str, macro->identifier->len);
+      error("%s expects %d arguments but got %d\n", str,
+            macro_params->len, params->len);
+    }
+    for (int i = 0; i < replacement->len; i++) {
+      Token *repl = vector_get(replacement, i);
+      int param_index = get_param_index(macro_params, repl);
+      if (param_index == -1) {
+        // if repl is not in the parameter list
+        emit(vector_get(replacement, i));
+      } else {
+        // replace parameter
+        emit(vector_get(params, param_index));
+      }
+    }
+  } else {
+    for (int i = 0; i < replacement->len; i++) {
+      emit(vector_get(replacement, i));
+    }
+  }
 }
 
 bool apply_if_defined() {

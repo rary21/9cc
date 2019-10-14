@@ -396,13 +396,16 @@ try 6 \
   }
 "
 
-try 14 \
+try 50 \
 "
-  #define ADD 1 + 2 * 4 \
-            + 2 + 3\
+  #define SUB(a, b) a-b
 
   int main() {
-    return ADD;
+    int aa;
+    int bb;
+    aa = 100;
+    bb = 50;
+    return SUB(aa,bb);
   }
 "
 
