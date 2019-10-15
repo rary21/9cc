@@ -28,6 +28,7 @@ Node* add();
 Node* mul();
 static Node* cast();
 Node* unary();
+Node* postfix();
 Node* primary();
 Node* func_def(Node *node, Type *type);
 Node* ident_init();
@@ -162,6 +163,23 @@ Node* new_node_func_def(char *func_name, Type *ret_type) {
   Type *type      = new_type_none();
   node->type      = type;
   return node;
+}
+
+// 'x++' where is of type T is compiled to
+// T *y = &x; T z = *y; *y = *y + 1; *z;
+Node* new_node_post_inc(Node* _node, int inc) {
+  debug_put("** new_node : post_inc\n");
+  Node *z      = calloc(1, sizeof(Node));
+  z->name      = "tmp0";
+  z->type      = _node->type;
+  allocate_ident(&z);
+
+  Node *y      = calloc(1, sizeof(Node));
+  y->name      = "tmp1";
+  y->type      = new_type(PTR, _node->type);
+  allocate_ident(&y);
+
+  return _node;
 }
 
 Node* consume_ident() {
@@ -399,7 +417,11 @@ Token* get_token(int count) {
 // add         = mul ("+" mul | "-" mul)*
 // mul         = cast ("*" cast | "/" cast)*
 // cast        = unary | (type_spec pointer) cast
-// unary       = ("+" | "-" | "&" | "*")? primary
+// unary       = postfix
+//               |("++" | "--")? unary
+//               | unary_op cast
+// unary_op    = ("+" | "-" | "&" | "*")?
+// postfix     = primary ("++" | "--")*
 // primary     = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
 //               ident "[" expr "]" | \"characters\"
 // func_def    = ident ("(" args_def ")") "{"
@@ -669,20 +691,57 @@ static Node* cast() {
   }
 }
 
-// unary      = ("+" | "-" | "&" | "*")? primary
+// unary       = postfix
+//               |("++" | "--")+ unary
+//               | unary_op cast
+// unary_op    = ("+" | "-" | "&" | "*")?
 Node* unary() {
   debug_put("unary\n");
   
-  if (consume(TK_ADD))
-    return primary();
-  if (consume(TK_SUB))
-    return new_node(ND_SUB, new_node_number(0), primary());
+  if (consume(TK_ADD)) {
+    if (consume(TK_ADD)) {  // "++"
+      Node *ident = unary();
+      Node *node  = new_node(ND_ADD, new_node_number(1), ident);
+      return new_node(ND_ASSIGN, ident, node);
+    } else {
+      return cast();
+    }
+  }
+  if (consume(TK_SUB)) {
+    if (consume(TK_SUB)) { // "--"
+      Node *ident = unary();
+      Node *node  = new_node(ND_SUB, ident, new_node_number(1));
+      return new_node(ND_ASSIGN, ident, node);
+    } else {
+      return new_node(ND_SUB, new_node_number(0), cast());
+    }
+  }
   if (consume(TK_AND))
-    return new_node(ND_ADDR, primary(), NULL);
+    return new_node(ND_ADDR, cast(), NULL);
   if (consume(TK_MUL))
-    return new_node(ND_DEREF, primary(), NULL);
+    return new_node(ND_DEREF, cast(), NULL);
 
-  return primary();
+  return postfix();
+}
+
+// postfix     = primary ("++" | "--")*
+Node* postfix() {
+  debug_put("postfix\n");
+  Node *node = primary();
+  
+  // if (consume(TK_ADD)) {
+  //   if (consume(TK_ADD)) {  // "++"
+  //     Node *ident = postfix();
+  //     Node *node  = new_node(ND_ADD, new_node_number(1), ident);
+  //     return new_node(ND_ASSIGN, ident, node);
+  //   }
+  // }
+  // if (consume(TK_SUB)) {
+  //   if (consume(TK_SUB)) {  // "--
+  //   }
+  // }
+
+  return node;
 }
 
 // primary    = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)

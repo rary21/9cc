@@ -457,4 +457,13 @@ try 1 \
   }
 "
 
+try 62 \
+" int main () {
+    int a = 0;
+    int c = 30;
+    a = ++c;
+    return a + c;
+  }
+"
+
 echo OK
