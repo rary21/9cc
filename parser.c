@@ -4,7 +4,7 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_EQ", "ND_NE", "ND_LT",
    "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_LITERAL", "ND_ASSIGN", "ND_RETURN",
    "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
-   "ND_ADDR", "ND_DEREF", "ND_SIZEOF", "ND_LVAR_DECL", "ND_LVAR_INIT", "ND_GVAR_DECL",
+   "ND_ADDR", "ND_DEREF", "ND_CAST", "ND_SIZEOF", "ND_LVAR_DECL", "ND_LVAR_INIT", "ND_GVAR_DECL",
    "ND_ARG_DECL", "ND_NONE"};
 
 typedef struct Env Env;
@@ -26,6 +26,7 @@ Node* equality();
 Node* relational();
 Node* add();
 Node* mul();
+static Node* cast();
 Node* unary();
 Node* primary();
 Node* func_def(Node *node, Type *type);
@@ -41,7 +42,11 @@ bool iseof() {
 }
 bool istype() {
   Token *token = vector_get_front(vec_token);
-  return token->kind == TK_INT || token->kind == TK_CHAR;
+  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT;
+}
+
+bool istype_token(Token *token) {
+  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT;
 }
 
 static bool consume(TokenKind kind) {
@@ -213,6 +218,10 @@ int consume_type_name() {
     token = vector_pop_front(vec_token);
     return CHAR;
   }
+  if (token->kind == TK_STRUCT) {
+    token = vector_pop_front(vec_token);
+    return STRUCT;
+  }
   error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
 }
 
@@ -362,28 +371,36 @@ bool look_token(TokenKind kind, int count) {
   return tkn->kind == kind;
 }
 
-// program    = top*
-// top        = func_def | iden_decl
-// statement  = expr ";" | "return" expr ";""
-//              "if" "(" expr ")" statement ("else" statement)?
-//              "while" "(" expr ")" statement
-//              "for" "(" expr? ";" expr? ";" expr? ")" statement
-//              "{" statement* "}"
-//              ident_init
-// ident_init = ident_decl ("=" assignment)?
-// ident_decl = type "*"* ident ("[" num "]")?
-// type       = int | char
-// expr       = assignment
-// assignment = equality ("=" assignment)*
-// equality   = relational ("==" relational | "!=" relational)*
-// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-// add        = mul ("+" mul | "-" mul)*
-// mul        = unary ("*" unary | "/" unary)*
-// unary      = ("+" | "-" | "&" | "*")? primary
-// primary    = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
-//              ident "[" expr "]" | \"characters\"
-// func_def   = ident ("(" args_def ")") "{"
-// args_def   = ident_decl? ("," ident_decl)*
+// return true if current token is kind
+Token* get_token(int count) {
+  return vec_token->elem[vec_token->index + count];
+}
+
+// program     = top*
+// top         = func_def | iden_decl
+// statement   = expr ";" | "return" expr ";""
+//               "if" "(" expr ")" statement ("else" statement)?
+//               "while" "(" expr ")" statement
+//               "for" "(" expr? ";" expr? ";" expr? ")" statement
+//               "{" statement* "}"
+//               ident_init
+// ident_init  = ident_decl ("=" assignment)?
+// ident_decl  = type_spec pointer ident ("[" num "]")?
+// type_spec   = int | char | struct_spec
+// pointer     = "*"*
+// struct_spec = struct ident
+// expr        = assignment
+// assignment  = equality ("=" assignment)*
+// equality    = relational ("==" relational | "!=" relational)*
+// relational  = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add         = mul ("+" mul | "-" mul)*
+// mul         = cast ("*" cast | "/" cast)*
+// cast        = unary | (type_spec pointer) cast
+// unary       = ("+" | "-" | "&" | "*")? primary
+// primary     = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
+//               ident "[" expr "]" | \"characters\"
+// func_def    = ident ("(" args_def ")") "{"
+// args_def    = ident_decl? ("," ident_decl)*
 void program() {
   int i = 0;
   Node *node;
@@ -609,21 +626,42 @@ Node* add() {
   }
 }
 
-// mul     = unary ("*" unary | "/" unary)*
+// mul         = cast ("*" cast | "/" cast)*
 Node* mul() {
   debug_put("mul\n");
-  Node *node = unary();
+  Node *node = cast();
   Node *rhs;
 
   while (1) {
     if (consume(TK_MUL)) {
-      rhs = unary();
+      rhs = cast();
       node = new_node(ND_MUL, node, rhs);
     } else if (consume(TK_DIV)) {
-      rhs = unary();
+      rhs = cast();
       node = new_node(ND_DIV, node, rhs);
     } else {
       return node;
+    }
+  }
+}
+
+// cast        = unary | (type_spec pointer) cast
+static Node* cast() {
+  debug_put("cast\n");
+  Node *node;
+  Token *cur  = get_token(0);
+  Token *next = get_token(1);
+
+  while (1) {
+    if (cur->kind == TK_LPARE && istype_token(next)) {
+      consume(TK_LPARE);
+      Type *type = consume_type();
+      expect(TK_RPARE);
+      node = new_node(ND_CAST, cast(), NULL);
+      node->cast_to = type;
+      return node;
+    } else {
+      return unary();
     }
   }
 }

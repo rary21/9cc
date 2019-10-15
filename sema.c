@@ -140,6 +140,10 @@ Node* do_walk(Node* node, bool decay) {
       error("mult or div with different type\n");
     }
     return node;
+  case ND_CAST:
+    node->lhs = walk(node->lhs);
+    node = cast(node->lhs, node->cast_to);
+    return node;
   case ND_EQ:
   case ND_NE:
   case ND_GT:

@@ -57,6 +57,7 @@ typedef enum {
   TK_FOR,         // for
   TK_INT,         // int
   TK_CHAR,        // char
+  TK_STRUCT,      // struct
   TK_DEFINE,      // define
   TK_SIZEOF,      // sizeof
   TK_EOF,         // End Of File
@@ -104,6 +105,7 @@ typedef enum {
   ND_FUNC_DEF,    // function definition
   ND_ADDR,        // "&"
   ND_DEREF,       // "*"
+  ND_CAST,        // cast
   ND_SIZEOF,      // sizeof
   ND_LVAR_DECL,   // local variable declaration
   ND_LVAR_INIT,   // local variable initialize
@@ -116,12 +118,21 @@ typedef enum {
 const char* TOKEN_KIND_STR[NUM_TOKEN_KIND];
 const char* NODE_KIND_STR[NUM_NODE_KIND];
 
+typedef struct Vector Vector;
+struct Vector {
+  void **elem;
+  int len;
+  int capacity;
+  int index;
+};
+
 typedef struct Type Type;
 struct Type {
-  enum {INT, CHAR, PTR, ARRAY} ty;
+  enum {INT, CHAR, PTR, ARRAY, STRUCT} ty;
   struct Type *ptr_to;
   int size;
   int array_size;
+  Vector *members;
   bool is_global;
 };
 
@@ -161,14 +172,7 @@ struct Node {
   LVar *var;                   // variable
   Type *type;                  // type
   Type *ret_type;              // return type for function
-};
-
-typedef struct Vector Vector;
-struct Vector {
-  void **elem;
-  int len;
-  int capacity;
-  int index;
+  Type *cast_to;               // cast to this type
 };
 
 // current token

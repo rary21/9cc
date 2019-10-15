@@ -448,4 +448,13 @@ try 0 \
   }
 "
 
+try 1 \
+" int main () {
+    int a = 0;
+    int c = 257;
+    a = (char)c;
+    return a;
+  }
+"
+
 echo OK
