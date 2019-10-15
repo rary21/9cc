@@ -171,8 +171,9 @@ Node* consume_ident() {
     char *name = calloc(1, 1 + token->len);
     strncpy(name, token->str, token->len);
     name[token->len] = '\0';
-    node->name = name;
-    node->kind = ND_IDENT;
+    node->name  = name;
+    node->kind  = ND_IDENT;
+    node->token = token;
     token = vector_pop_front(vec_token);
     return node;
   }
@@ -189,6 +190,7 @@ Node* consume_literal() {
     node->name         = name;
     node->kind         = ND_LITERAL;
     node->type         = new_type(PTR, NULL);
+    node->token        = token;
     node->literal_id   = token->literal_id;
     token = vector_pop_front(vec_token);
     return node;
@@ -341,8 +343,9 @@ Node* expect_lvar_decl() {
     char *name = calloc(1, 1 + token->len);
     strncpy(name, token->str, token->len);
     name[token->len] = '\0';
-    node->name = name;
-    node->kind = ND_LVAR_DECL;
+    node->name  = name;
+    node->kind  = ND_LVAR_DECL;
+    node->token = token;
     token = vector_pop_front(vec_token);
     return node;
   } else {

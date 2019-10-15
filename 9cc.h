@@ -173,6 +173,8 @@ struct Node {
   Type *type;                  // type
   Type *ret_type;              // return type for function
   Type *cast_to;               // cast to this type
+  // for error report
+  Token *token;                // token
 };
 
 // current token

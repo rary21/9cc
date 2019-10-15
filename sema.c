@@ -20,6 +20,9 @@ void check_int(Node *node) {
 bool is_ptr(Node *node) {
   return node->type->ty == PTR || node->type->ty == ARRAY;
 }
+bool is_narrowing(Type *type, Type *type_to) {
+  return type->size > type_to->size;
+}
 bool check_ptr(Node *node) {
   if (!is_ptr(node))
     error("got not ptr\n");
@@ -142,6 +145,10 @@ Node* do_walk(Node* node, bool decay) {
     return node;
   case ND_CAST:
     node->lhs = walk(node->lhs);
+    if (is_narrowing(node->lhs->type, node->cast_to)) {
+      fprintf(stderr, "Warning : narrowing conversion %s in line %d\n",
+              node->lhs->name, get_line_number(node->lhs->token));
+    }
     node = cast(node->lhs, node->cast_to);
     return node;
   case ND_EQ:
