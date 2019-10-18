@@ -5,7 +5,7 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
    "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_LITERAL", "ND_ASSIGN", "ND_RETURN",
    "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
    "ND_ADDR", "ND_DEREF", "ND_CAST", "ND_SIZEOF", "ND_LVAR_DECL", "ND_LVAR_INIT", "ND_GVAR_DECL",
-   "ND_ARG_DECL", "ND_NONE"};
+   "ND_ARG_DECL", "ND_POSTINC", "ND_NONE"};
 
 typedef struct Env Env;
 struct Env {
@@ -165,21 +165,18 @@ Node* new_node_func_def(char *func_name, Type *ret_type) {
   return node;
 }
 
-// 'x++' where is of type T is compiled to
-// T *y = &x; T z = *y; *y = *y + 1; *z;
-Node* new_node_post_inc(Node* _node, int inc) {
+Node* new_node_post_inc(Node* _node, int _inc) {
   debug_put("** new_node : post_inc\n");
-  Node *z      = calloc(1, sizeof(Node));
-  z->name      = "tmp0";
-  z->type      = _node->type;
-  allocate_ident(&z);
 
-  Node *y      = calloc(1, sizeof(Node));
-  y->name      = "tmp1";
-  y->type      = new_type(PTR, _node->type);
-  allocate_ident(&y);
+  if (_node->kind != ND_IDENT)
+    error("post_inc got not IDENT");
+  Node *node      = new_node(ND_POSTINC, NULL, NULL);
+  Node *add       = new_node(ND_ADD, _node, new_node_number(_inc));
+  Node *inc       = new_node(ND_ASSIGN, _node, add);
+  node->rhs       = _node;
+  node->statement = inc;
 
-  return _node;
+  return node;
 }
 
 Node* consume_ident() {
@@ -729,17 +726,21 @@ Node* postfix() {
   debug_put("postfix\n");
   Node *node = primary();
   
-  // if (consume(TK_ADD)) {
-  //   if (consume(TK_ADD)) {  // "++"
-  //     Node *ident = postfix();
-  //     Node *node  = new_node(ND_ADD, new_node_number(1), ident);
-  //     return new_node(ND_ASSIGN, ident, node);
-  //   }
-  // }
-  // if (consume(TK_SUB)) {
-  //   if (consume(TK_SUB)) {  // "--
-  //   }
-  // }
+  while (1) {
+    if (look_token(TK_ADD, 0) && look_token(TK_ADD, 1)) { // ++
+      consume(TK_ADD);
+      consume(TK_ADD);
+      node = new_node_post_inc(node, 1);
+      continue;
+    }
+    if (look_token(TK_SUB, 0) && look_token(TK_SUB, 1)) { // --
+      consume(TK_SUB);
+      consume(TK_SUB);
+      node = new_node_post_inc(node, -1);
+      continue;
+    }
+    break;
+  }
 
   return node;
 }

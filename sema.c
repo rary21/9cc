@@ -165,6 +165,11 @@ Node* do_walk(Node* node, bool decay) {
       error("comparsion with different type\n");
     }
     return node;
+  case ND_POSTINC:
+    node->rhs = walk(node->rhs);
+    node->statement = walk(node->statement);
+    node->type = node->rhs->type;
+    return node;
   case ND_SIZEOF:
     node->lhs  = walk(node->lhs);
     if (node->lhs->type->ty == ARRAY) {

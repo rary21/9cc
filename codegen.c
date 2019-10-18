@@ -100,6 +100,11 @@ void gen(Node *node) {
       printf("  mov [rax], %s       # assign rval to lval\n", reg);
       printf("  push r10            # save assignment result\n");  // assignment can be concatenated
       return;
+    case ND_POSTINC:
+      gen(node->rhs); // generate current value
+      gen(node->statement);
+      printf("  pop rax\n"); // discard incremented result
+      return;
     case ND_RETURN:
       // ND_RETURN has lhs only
       gen(node->lhs);

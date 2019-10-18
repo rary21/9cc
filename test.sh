@@ -316,7 +316,7 @@ try 99 \
     c = 5000;
     str[0] = a;
     str[1] = -1;
-    str[2] = a;
+     str[2] = a;
     str[3] = -3;
     a = str[0] + str[1];
     return a;
@@ -462,6 +462,15 @@ try 62 \
     int a = 0;
     int c = 30;
     a = ++c;
+    return a + c;
+  }
+"
+
+try 61 \
+" int main () {
+    int a = 0;
+    int c = 30;
+    a = c++;
     return a + c;
   }
 "

@@ -111,6 +111,7 @@ typedef enum {
   ND_LVAR_INIT,   // local variable initialize
   ND_GVAR_DECL,   // global variable declaration
   ND_ARG_DECL,    // function argument declaration
+  ND_POSTINC,     // postfix increment
   ND_NONE,        // do nothing
   NUM_NODE_KIND,
 } NodeKind;
@@ -158,6 +159,7 @@ struct Node {
   Node *init;                  // used in for
   Node *last;                  // used in for
   Node *body;                  // body of function
+  Node *expr;                  // used in postfix increment
   int locals_size;             // total size of local variables
   Node *block[256];            // used to represent block of code
   Node *args_call[MAX_ARGS+1]; // currently, support 6 arguments
