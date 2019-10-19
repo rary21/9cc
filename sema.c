@@ -251,7 +251,8 @@ void sema() {
   int i_prog = 0;
   while(prog[i_prog]) {
     if (prog[i_prog]->kind == ND_GVAR_DECL) {
-      i_prog++;
+    } else if (prog[i_prog]->kind == ND_FUNC_DECL) {
+      prog[i_prog]->kind = ND_NONE;
     } else if (prog[i_prog]->kind == ND_FUNC_DEF) {
       int i_arg = 0;
       debug_print("sema %d %p\n", i_prog, prog[i_prog]->body);
@@ -263,9 +264,9 @@ void sema() {
       walk(prog[i_prog]->body);
       prog[i_prog]->locals_size = lvar_offset;
       debug_print("sema %d offset%d\n", i_prog, prog[i_prog]->locals_size);
-      i_prog++;
     } else {
       error("unexpected toplevel node %s\n", NODE_KIND_STR[prog[i_prog]->kind]);
     }
+    i_prog++;
   }
 }

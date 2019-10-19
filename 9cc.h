@@ -102,6 +102,7 @@ typedef enum {
   ND_FOR,         // for
   ND_BLOCK,       // "{" block "}"
   ND_FUNC_CALL,   // function call
+  ND_FUNC_DECL,   // function declaration
   ND_FUNC_DEF,    // function definition
   ND_ADDR,        // "&"
   ND_DEREF,       // "*"

@@ -3,7 +3,7 @@
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_EQ", "ND_NE", "ND_LT",
    "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_LITERAL", "ND_ASSIGN", "ND_RETURN",
-   "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DEF",
+   "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DECL", "ND_FUNC_DEF",
    "ND_ADDR", "ND_DEREF", "ND_CAST", "ND_SIZEOF", "ND_LVAR_DECL", "ND_LVAR_INIT", "ND_GVAR_DECL",
    "ND_ARG_DECL", "ND_POSTINC", "ND_NONE"};
 
@@ -30,7 +30,7 @@ static Node* cast();
 Node* unary();
 Node* postfix();
 Node* primary();
-Node* func_def(Node *node, Type *type);
+Node* func_decl_def(Node *node, Type *type);
 Node* ident_init();
 Node* ident_decl();
 
@@ -394,35 +394,36 @@ Token* get_token(int count) {
   return vec_token->elem[vec_token->index + count];
 }
 
-// program     = top*
-// top         = func_def | iden_decl
-// statement   = expr ";" | "return" expr ";""
-//               "if" "(" expr ")" statement ("else" statement)?
-//               "while" "(" expr ")" statement
-//               "for" "(" expr? ";" expr? ";" expr? ")" statement
-//               "{" statement* "}"
-//               ident_init
-// ident_init  = ident_decl ("=" assignment)?
-// ident_decl  = type_spec pointer ident ("[" num "]")?
-// type_spec   = int | char | struct_spec
-// pointer     = "*"*
-// struct_spec = struct ident
-// expr        = assignment
-// assignment  = equality ("=" assignment)*
-// equality    = relational ("==" relational | "!=" relational)*
-// relational  = add ("<" add | "<=" add | ">" add | ">=" add)*
-// add         = mul ("+" mul | "-" mul)*
-// mul         = cast ("*" cast | "/" cast)*
-// cast        = unary | (type_spec pointer) cast
-// unary       = postfix
-//               |("++" | "--")? unary
-//               | unary_op cast
-// unary_op    = ("+" | "-" | "&" | "*")?
-// postfix     = primary ("++" | "--")*
-// primary     = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
-//               ident "[" expr "]" | \"characters\"
-// func_def    = ident ("(" args_def ")") "{"
-// args_def    = ident_decl? ("," ident_decl)*
+// program       = top*
+// top           = func_decl_def | iden_decl
+// statement     = expr ";" | "return" expr ";""
+//                 "if" "(" expr ")" statement ("else" statement)?
+//                 "while" "(" expr ")" statement
+//                 "for" "(" expr? ";" expr? ";" expr? ")" statement
+//                 "{" statement* "}"
+//                 ident_init
+// ident_init    = ident_decl ("=" assignment)?
+// ident_decl    = type_spec pointer ident ("[" num "]")?
+// type_spec     = int | char | struct_spec
+// pointer       = "*"*
+// struct_spec   = struct ident
+// expr          = assignment
+// assignment    = equality ("=" assignment)*
+// equality      = relational ("==" relational | "!=" relational)*
+// relational    = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add           = mul ("+" mul | "-" mul)*
+// mul           = cast ("*" cast | "/" cast)*
+// cast          = unary | (type_spec pointer) cast
+// unary         = postfix
+//                 |("++" | "--")? unary
+//                 | unary_op cast
+// unary_op      = ("+" | "-" | "&" | "*")?
+// postfix       = primary ("++" | "--")*
+// primary       = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
+//                 ident "[" expr "]" | \"characters\"
+// func_decl_def = func_decl | func_def
+// func_decl     = type ident ("(" args_def ")") ";"
+// args_def      = ident_decl? ("," ident_decl)*
 void program() {
   int i = 0;
   Node *node;
@@ -442,7 +443,7 @@ Node* top() {
   type = expect_type();
   node = consume_ident();
   if (look_token(TK_LPARE, 0)) {   // function definition
-    node = func_def(node, type);
+    node = func_decl_def(node, type);
   } else if (consume(TK_LBBRA)) {  // global array variable
     node->kind       = ND_GVAR_DECL;
     Type *deref_type = new_type(type->ty, type->ptr_to);
@@ -453,13 +454,15 @@ Node* top() {
     type->is_global  = true;
     expect(TK_RBBRA);
     expect(TK_SEMICOLON);
+    node->type = type;
+    allocate_ident(&node);
   } else {
     node->kind       = ND_GVAR_DECL;
     type->is_global  = true;
     expect(TK_SEMICOLON);
+    node->type = type;
+    allocate_ident(&node);
   }
-  node->type = type;
-  allocate_ident(&node);
 
   return node;
 }
@@ -769,6 +772,7 @@ Node* primary() {
   } else if (node = consume_ident()) {
     debug_print("%s found\n", node->name);
     if (consume(TK_LPARE)) {   // assuming function call
+      get_ident_info(&node);
       node->func_name = node->name;  // copy to func_name
       node->kind      = ND_FUNC_CALL;
       node->type      = new_type_int();  // TODO: supoprt any return type
@@ -800,16 +804,19 @@ Node* primary() {
   }
 }
 
-// func_def   = type ident ("(" args_def ")") "{"
-// args_def   = ident_decl? ("," ident_decl)*
-Node* func_def(Node *func_def, Type *ret_type) {
+// func_decl_def   = func_decl | func_def
+// func_decl       = type ident ("(" args_def ")") ";"
+// func_def        = type ident ("(" args_def ")") "{" expr "}"
+// args_def        = ident_decl? ("," ident_decl)*
+Node* func_decl_def(Node *func_def, Type *ret_type) {
   debug_put("fnc_def\n");
   Node *node;
 
   func_def->kind      = ND_FUNC_DEF;
   func_def->func_name = func_def->name;
-  func_def->ret_type  = ret_type;
-  Type *type      = new_type_none();
+  func_def->type      = ret_type;
+
+  allocate_ident(&func_def);
 
   if (func_def)
   {
@@ -831,8 +838,12 @@ Node* func_def(Node *func_def, Type *ret_type) {
         expect(TK_COMMA);
       }
       func_def->args_def[i_arg] = NULL;
-      if (!look_token(TK_LCBRA, 0))
-        error("function definition must be with {\n");
+      if (!look_token(TK_LCBRA, 0)) {
+        // this is function declaration
+        expect(TK_SEMICOLON);
+        func_def->kind = ND_FUNC_DECL;
+        return func_def;
+      }
       func_def->body = statement(); // must be compound statement
       env = env->parent;
       return func_def;

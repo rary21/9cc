@@ -25,6 +25,7 @@ try() {
 
 try 0 \
 "
+int printf();
 int printQueen(int *queen)
 {
     int i;
@@ -140,6 +141,7 @@ try 75 \
 
 try 6 \
 "
+  int alloc4();
   int main() {
     int a;
     int *b;
@@ -358,6 +360,7 @@ try 99 \
 
 try 97 \
 "
+  int printf();
   int a;
   char **pstr;
   char *str;
@@ -374,6 +377,7 @@ try 97 \
 try 97 \
 "
   #define DEFAULT 13
+  int printf();
   int a;
   char **pstr;
   char *str;
@@ -419,17 +423,19 @@ try 0 \
 
 try 0 \
 "
-#define EXPECT(expected, expr)                                    \
-  {                                                               \
-    int e1 = (expected);                                          \
-    int e2 = (expr);                                              \
-    if (e1 == e2) {                                               \
-      printf(\"%d => %d\n\", e1, e2);                             \
-    } else {                                                      \
-      printf(\"%d expected, but got %d\n\", e1, e2);              \
-      exit(1);                                                    \
-    }                                                             \
-  }
+  int exit();
+  int printf();
+  #define EXPECT(expected, expr)                                    \
+    {                                                               \
+      int e1 = (expected);                                          \
+      int e2 = (expr);                                              \
+      if (e1 == e2) {                                               \
+        printf(\"%d => %d\n\", e1, e2);                             \
+      } else {                                                      \
+        printf(\"%d expected, but got %d\n\", e1, e2);              \
+        exit(1);                                                    \
+      }                                                             \
+    }
 
   int main () {
     EXPECT(1, 1)
@@ -438,7 +444,9 @@ try 0 \
 "
 
 try 0 \
-" int main () {
+"
+  int printf();
+  int main () {
     printf(\"%d\\n\", __LINE__);
     printf(\"%d\\n\", __LINE__);
     printf(\"%d\\n\", __LINE__);
