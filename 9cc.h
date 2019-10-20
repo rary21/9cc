@@ -128,13 +128,22 @@ struct Vector {
   int index;
 };
 
+typedef struct Map Map;
+struct Map {
+  Vector *keys;
+  Vector *vals;
+  int len;
+};
+
 typedef struct Type Type;
 struct Type {
   enum {INT, CHAR, PTR, ARRAY, STRUCT} ty;
   struct Type *ptr_to;
   int size;
+  int align;
+  int offset;
   int array_size;
-  Vector *members;
+  Map *members;
   bool is_global;
 };
 
@@ -170,6 +179,7 @@ struct Node {
   char *name;                  // name used in assembly
   char *func_name;             // function name used in assembly
   int val;                     // value when kind is ND_NUM
+  int len;                     // lenght of name
   int offset;                  // stack offset
   int literal_id;              // literal id
   LVar *var;                   // variable
@@ -209,15 +219,20 @@ Type* new_type(int ty, Type *ptr_to);
 Type* new_type_int();
 Type* new_type_char();
 Vector *new_vector();
+Map *new_map();
 void *vector_pop_front(Vector *vec);
 void vector_push_back(Vector *vec, void *p);
 void *vector_get(Vector *vec, int i);
 void *vector_get_front(Vector *vec);
+void map_add(Map *map, char *key, void *val);
+void *map_find(Map *map, const char* key);
 
 bool same_type(Type *t1, Type *t2);
 bool same_size(Node *n1, Node *n2);
 bool is_32(Node *node);
 bool is_8(Node *node);
+
+int roundup(int val, int align);
 
 int get_line_number(Token *tkn);
 

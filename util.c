@@ -69,3 +69,31 @@ void *vector_get(Vector *vec, int i) {
 void *vector_get_front(Vector *vec) {
   return vec->elem[vec->index];
 }
+
+Map *new_map() {
+  Map *map = calloc(1, sizeof(Map));
+  map->keys = new_vector();
+  map->vals = new_vector();
+}
+
+void map_add(Map *map, char *key, void *val) {
+  vector_push_back(map->keys, key);
+  vector_push_back(map->vals, val);
+  map->len++;
+}
+
+// NULL terminated key should be given
+void *map_find(Map *map, const char* key) {
+  for (int i = 0; i < map->keys->len; i++) {
+    if (strlen(key) != strlen(map->keys->elem[i]))
+      continue;
+    if (0 == strncmp(map->keys->elem[i], key, strlen(key)))
+      return map->vals->elem[i];
+  }
+  return NULL;
+}
+
+int roundup(int val, int align) {
+  int rem = val % align;
+  return (rem == 0) ? val : val + align - rem;
+}

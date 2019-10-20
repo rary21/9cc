@@ -250,7 +250,8 @@ Node* do_walk(Node* node, bool decay) {
 void sema() {
   int i_prog = 0;
   while(prog[i_prog]) {
-    if (prog[i_prog]->kind == ND_GVAR_DECL) {
+    if (prog[i_prog]->kind == ND_GVAR_DECL ||
+        prog[i_prog]->kind == ND_NONE) {
     } else if (prog[i_prog]->kind == ND_FUNC_DECL) {
       prog[i_prog]->kind = ND_NONE;
     } else if (prog[i_prog]->kind == ND_FUNC_DEF) {

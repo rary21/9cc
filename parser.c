@@ -10,7 +10,8 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
 typedef struct Env Env;
 struct Env {
   Vector *locals;
-  Env  *parent;
+  Map *struct_types;
+  Env *parent;
 };
 
 Node *prog[100];
@@ -33,6 +34,8 @@ Node* primary();
 Node* func_decl_def(Node *node, Type *type);
 Node* ident_init();
 Node* ident_decl();
+Map *struct_members();
+Type* find_struct_type(const char* str);
 
 Node* new_node(NodeKind, Node*, Node*);
 void allocate_ident(Node** _node);
@@ -66,7 +69,8 @@ static bool consume(TokenKind kind) {
 static void expect(TokenKind kind) {
   Token *token = vector_pop_front(vec_token);
   if (token->kind != kind)
-    error("%s expected, but got %s", TOKEN_KIND_STR[kind], TOKEN_KIND_STR[token->kind]);
+    error("LINE: %d %s expected, but got %s", get_line_number(token),
+          TOKEN_KIND_STR[kind], TOKEN_KIND_STR[token->kind]);
 }
 
 Type* new_type(int ty, Type *ptr_to) {
@@ -74,12 +78,20 @@ Type* new_type(int ty, Type *ptr_to) {
   type->ty = ty;
   if (ty == PTR)
     type->ptr_to = ptr_to;
-  if (ty == INT)
-    type->size = 4;
-  else if (ty == CHAR)
-    type->size = 1;
-  else if (ty == PTR)
-    type->size = 8;
+
+  if (ty == INT) {
+    type->size  = 4;
+    type->align = 4;
+  } else if (ty == CHAR) {
+    type->size  = 1;
+    type->align = 1;
+  } else if (ty == PTR) {
+    type->size  = 8;
+    type->align = 8;
+  } else if (ty == STRUCT) {
+    type->size  = 0;
+    type->align = 8;
+  }
 }
 
 Type* new_type_int() {
@@ -187,12 +199,20 @@ Node* consume_ident() {
     strncpy(name, token->str, token->len);
     name[token->len] = '\0';
     node->name  = name;
+    node->len   = token->len;
     node->kind  = ND_IDENT;
     node->token = token;
     token = vector_pop_front(vec_token);
     return node;
   }
   return NULL;
+}
+
+Node* expect_ident() {
+  Token *token = vector_get_front(vec_token);
+  if (token->kind != TK_IDENT)
+    error("ident expected");
+  return consume_ident();
 }
 
 Node* consume_literal() {
@@ -250,42 +270,71 @@ int get_size(int ty) {
     return 1;
   if (ty == PTR)
     return 8;
+  if (ty == STRUCT)
+    return 0;
   error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
 }
 
-Type* consume_type() {
+void struct_fix_alignment(Type *type) {
+  Map *members = type->members;
+  int size = 0;
+  debug_print("member count : %d\n", members->len);
+  for (int i = 0; i < members->len; i++) {
+    Type *member = vector_get(members->vals, i);
+    member->offset = roundup(size, member->align);
+    size = size + member->size;
+  }
+  type->size = roundup(size, 4);
+  debug_print("struct size : %d\n", size);
+}
+
+void add_struct_type(char *name, Type *type) {
+  map_add(env->struct_types, name, type);
+}
+
+Type *consume_type() {
+  Type *type = new_type(consume_type_name(), NULL);
+  if (type->ty == STRUCT) {
+    Node *ident = expect_ident();
+    if (consume(TK_LCBRA)) { // member definition
+      type->members = struct_members();
+      struct_fix_alignment(type);
+      add_struct_type(ident->name, type);
+    } else { // otherwise, struct already defined
+      type = find_struct_type(ident->name);
+    }
+  }
+
+  return type;
+}
+
+Type* consume_type_ptr() {
   if (!istype())
     return NULL;
 
-  Type *type  = calloc(1, sizeof(Type));
-  int   ty    = consume_type_name();
-  type->ty    = ty;
-  type->size  = get_size(type->ty);
+  Type *type = consume_type();
   int ptr_cnt = consume_ptrs();
 
   while (ptr_cnt > 0) {
-    Type *new_type = calloc(1, sizeof(Type));
-    new_type->ty     = PTR;
-    new_type->size   = get_size(new_type->ty);
-    new_type->ptr_to = type;
-    type = new_type;
+    type = new_type(PTR, type);
     ptr_cnt = ptr_cnt - 1;
   }
   return type;
 }
 
-Type* expect_type() {
+Type* expect_type_ptr() {
   if (!istype())
     error("no type found\n");
-  return consume_type();
+  return consume_type_ptr();
 }
 
 // go to next token and return true if current token has same kind
 // otherwise, return false
 static Env* new_env(Env *parent) {
   Env *env = calloc(1, sizeof(Env));
-  env->parent = parent;
-  env->locals = new_vector();
+  env->parent       = parent;
+  env->locals       = new_vector();
+  env->struct_types = new_map();
   return env;
 }
 
@@ -301,6 +350,17 @@ LVar* find_lvar(const char* str, int len) {
       if (strncmp(lvar->name, str, len) == 0)
         return lvar;
     }
+  }
+  return NULL;
+}
+
+// return struct types which has same name, or NULL
+Type* find_struct_type(const char* str) {
+  Env* _env;
+  for (_env = env; _env; _env = _env->parent) {
+      Type *type = map_find(_env->struct_types, str);
+      if (type)
+        return type;
   }
   return NULL;
 }
@@ -394,36 +454,37 @@ Token* get_token(int count) {
   return vec_token->elem[vec_token->index + count];
 }
 
-// program       = top*
-// top           = func_decl_def | iden_decl
-// statement     = expr ";" | "return" expr ";""
-//                 "if" "(" expr ")" statement ("else" statement)?
-//                 "while" "(" expr ")" statement
-//                 "for" "(" expr? ";" expr? ";" expr? ")" statement
-//                 "{" statement* "}"
-//                 ident_init
-// ident_init    = ident_decl ("=" assignment)?
-// ident_decl    = type_spec pointer ident ("[" num "]")?
-// type_spec     = int | char | struct_spec
-// pointer       = "*"*
-// struct_spec   = struct ident
-// expr          = assignment
-// assignment    = equality ("=" assignment)*
-// equality      = relational ("==" relational | "!=" relational)*
-// relational    = add ("<" add | "<=" add | ">" add | ">=" add)*
-// add           = mul ("+" mul | "-" mul)*
-// mul           = cast ("*" cast | "/" cast)*
-// cast          = unary | (type_spec pointer) cast
-// unary         = postfix
-//                 |("++" | "--")? unary
-//                 | unary_op cast
-// unary_op      = ("+" | "-" | "&" | "*")?
-// postfix       = primary ("++" | "--")*
-// primary       = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
-//                 ident "[" expr "]" | \"characters\"
-// func_decl_def = func_decl | func_def
-// func_decl     = type ident ("(" args_def ")") ";"
-// args_def      = ident_decl? ("," ident_decl)*
+// program        = top*
+// top            = func_decl_def | iden_decl
+// statement      = expr ";" | "return" expr ";""
+//                  "if" "(" expr ")" statement ("else" statement)?
+//                  "while" "(" expr ")" statement
+//                  "for" "(" expr? ";" expr? ";" expr? ")" statement
+//                  "{" statement* "}"
+//                  ident_init
+// ident_init     = ident_decl ("=" assignment)?
+// ident_decl     = type_spec pointer ident ("[" num "]")?
+// type_spec      = int | char | struct_spec
+// pointer        = "*"*
+// struct_spec    = struct ident
+// expr           = assignment
+// assignment     = equality ("=" assignment)*
+// equality       = relational ("==" relational | "!=" relational)*
+// relational     = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add            = mul ("+" mul | "-" mul)*
+// mul            = cast ("*" cast | "/" cast)*
+// cast           = unary | (type_spec pointer) cast
+// unary          = postfix
+//                  |("++" | "--")? unary
+//                  | unary_op cast
+// unary_op       = ("+" | "-" | "&" | "*")?
+// postfix        = primary ("++" | "--")*
+// primary        = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
+//                  ident "[" expr "]" | \"characters\"
+// func_decl_def  = func_decl | func_def
+// func_decl      = type ident ("(" args_def ")") ";"
+// args_def       = ident_decl? ("," ident_decl)*
+// struct_members = ident_decl? (";" ident_decl)*
 void program() {
   int i = 0;
   Node *node;
@@ -440,7 +501,7 @@ void program() {
 Node* top() {
   Node *node;
   Type *type;
-  type = expect_type();
+  type = expect_type_ptr();
   node = consume_ident();
   if (look_token(TK_LPARE, 0)) {   // function definition
     node = func_decl_def(node, type);
@@ -456,12 +517,16 @@ Node* top() {
     expect(TK_SEMICOLON);
     node->type = type;
     allocate_ident(&node);
-  } else {
+  } else if (node) {
     node->kind       = ND_GVAR_DECL;
     type->is_global  = true;
     expect(TK_SEMICOLON);
     node->type = type;
     allocate_ident(&node);
+  } else { // struct type declaration
+    expect(TK_SEMICOLON);
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_NONE;
   }
 
   return node;
@@ -533,6 +598,7 @@ Node* statement() {
 Node* ident_init() {
   debug_put("ident_init\n");
   Node *ident = ident_decl();
+  allocate_ident(&ident);
   if (consume(TK_ASSIGN)) {
     Node *lvar = new_node(ND_IDENT, NULL, NULL);
     lvar->name = ident->name;
@@ -549,7 +615,7 @@ Node* ident_init() {
 Node* ident_decl() {
   debug_put("ident_decl\n");
   if (istype()) {
-    Type *type  = consume_type();
+    Type *type  = consume_type_ptr();
     Node *ident = expect_lvar_decl();
     if (consume(TK_LBBRA)) {
       Type *deref_type = new_type(type->ty, type->ptr_to);
@@ -561,7 +627,6 @@ Node* ident_decl() {
     }
     debug_print("size:%d\n", type->size);
     ident->type = type;
-    allocate_ident(&ident);
     debug_put("alloc end\n");
     return ident;
   }
@@ -680,7 +745,7 @@ static Node* cast() {
   while (1) {
     if (cur->kind == TK_LPARE && istype_token(next)) {
       consume(TK_LPARE);
-      Type *type = consume_type();
+      Type *type = consume_type_ptr();
       expect(TK_RPARE);
       node = new_node(ND_CAST, cast(), NULL);
       node->cast_to = type;
@@ -831,6 +896,7 @@ Node* func_decl_def(Node *func_def, Type *ret_type) {
         node = ident_decl();
         if (!node && consume(TK_RPARE))
           break;
+        allocate_ident(&node);
         node->kind = ND_ARG_DECL;
         func_def->args_def[i_arg++] = node;
         if (consume(TK_RPARE))
@@ -851,4 +917,18 @@ Node* func_decl_def(Node *func_def, Type *ret_type) {
   }
 
   return NULL;
+}
+
+// struct_members = ident_decl ";" (ident_decl";")* "}"
+Map *struct_members() {
+  Map *map = new_map();
+
+  while (1) {
+    Node *node = ident_decl();
+    if (!node && consume(TK_RCBRA))
+      break;
+    expect(TK_SEMICOLON);
+    map_add(map, node->name, node->type);
+  }
+  return map;
 }

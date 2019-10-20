@@ -483,4 +483,16 @@ try 61 \
   }
 "
 
+try 8 \
+" 
+  struct test {
+    char c;
+    int b;
+    char c;
+  } a;
+  int main () {
+    struct test ss;
+    return sizeof(ss);
+  }
+"
 echo OK
