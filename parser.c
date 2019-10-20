@@ -762,6 +762,7 @@ static Node* cast() {
 // unary       = postfix
 //               |("++" | "--")+ unary
 //               | unary_op cast
+//               | sizeof unary
 // unary_op    = ("+" | "-" | "&" | "*")?
 Node* unary() {
   debug_put("unary\n");
@@ -788,6 +789,17 @@ Node* unary() {
     return new_node(ND_ADDR, cast(), NULL);
   if (consume(TK_MUL))
     return new_node(ND_DEREF, cast(), NULL);
+
+  if (consume(TK_SIZEOF)) {
+    Node *node;
+    if (consume(TK_LPARE)) {
+      node = new_node(ND_SIZEOF, unary(), NULL);
+      expect(TK_RPARE);
+    } else {
+      node = new_node(ND_SIZEOF, unary(), NULL);
+    }
+    return node;
+  }
 
   return postfix();
 }
@@ -834,8 +846,7 @@ Node* postfix() {
   return node;
 }
 
-// primary    = num | ident | "(" expr ")" | sizeof(unary)
-//            | \"characters\"
+// primary    = num | ident | "(" expr ")" | \"characters\"
 Node* primary() {
   debug_put("primary\n");
   Node* node;
@@ -844,14 +855,6 @@ Node* primary() {
   if (consume(TK_LPARE)) {
     node = expr();
     expect(TK_RPARE);   // ')' should be here
-    return node;
-  } else if (consume(TK_SIZEOF)) {
-    if (consume(TK_LPARE)) {
-      node = new_node(ND_SIZEOF, unary(), NULL);
-      expect(TK_RPARE);
-    } else {
-      node = new_node(ND_SIZEOF, unary(), NULL);
-    }
     return node;
   } else if (node = consume_literal()) { // literal
     return node;
