@@ -478,7 +478,10 @@ Token* get_token(int count) {
 //                  |("++" | "--")? unary
 //                  | unary_op cast
 // unary_op       = ("+" | "-" | "&" | "*")?
-// postfix        = primary ("++" | "--")*
+// postfix        = primary
+//                  | primary ("++" | "--")
+//                  | primary "[" expr "]"
+//                  | primary "(" args_def ")"
 // primary        = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
 //                  ident "[" expr "]" | \"characters\"
 // func_decl_def  = func_decl | func_def
@@ -789,32 +792,50 @@ Node* unary() {
   return postfix();
 }
 
-// postfix     = primary ("++" | "--")*
+// postfix     = primary
+//               | primary ("++" | "--")
+//               | primary "[" expr "]"
+//               | primary "(" args_def ")"
 Node* postfix() {
   debug_put("postfix\n");
   Node *node = primary();
   
-  while (1) {
-    if (look_token(TK_ADD, 0) && look_token(TK_ADD, 1)) { // ++
-      consume(TK_ADD);
-      consume(TK_ADD);
-      node = new_node_post_inc(node, 1);
-      continue;
+  if (look_token(TK_ADD, 0) && look_token(TK_ADD, 1)) { // ++
+    consume(TK_ADD);
+    consume(TK_ADD);
+    node = new_node_post_inc(node, 1);
+  } else if (look_token(TK_SUB, 0) && look_token(TK_SUB, 1)) { // --
+    consume(TK_SUB);
+    consume(TK_SUB);
+    node = new_node_post_inc(node, -1);
+  } else if (consume(TK_LPARE)) { // assuming function call
+    node->func_name = node->name; // copy to func_name
+    node->kind      = ND_FUNC_CALL;
+    node->type      = new_type_int(); // TODO: supoprt any return type
+    if (consume(TK_RPARE)) { // if no argument
+      return node;
     }
-    if (look_token(TK_SUB, 0) && look_token(TK_SUB, 1)) { // --
-      consume(TK_SUB);
-      consume(TK_SUB);
-      node = new_node_post_inc(node, -1);
-      continue;
+    int i_arg = 0;
+    // args = expr ("," expr)*
+    while (i_arg < MAX_ARGS) {
+      node->args_call[i_arg++] = expr();
+      if (consume(TK_RPARE))
+        break;
+      expect(TK_COMMA);
     }
-    break;
+    node->args_call[i_arg] = NULL;
+  } else if (consume(TK_LBBRA)) {  // assuming array accsess
+    Node *add   = new_node(ND_ADD, node, expr());
+    Node *deref = new_node(ND_DEREF, add, NULL);
+    expect(TK_RBBRA);
+    return deref;
   }
 
   return node;
 }
 
-// primary    = num | ident ("(" expr* ")")? | "(" expr ")" | sizeof(unary)
-//              ident "[" expr "]" | \"characters\"
+// primary    = num | ident | "(" expr ")" | sizeof(unary)
+//            | \"characters\"
 Node* primary() {
   debug_put("primary\n");
   Node* node;
@@ -836,33 +857,8 @@ Node* primary() {
     return node;
   } else if (node = consume_ident()) {
     debug_print("%s found\n", node->name);
-    if (consume(TK_LPARE)) {   // assuming function call
-      get_ident_info(&node);
-      node->func_name = node->name;  // copy to func_name
-      node->kind      = ND_FUNC_CALL;
-      node->type      = new_type_int();  // TODO: supoprt any return type
-      if (consume(TK_RPARE)) { // if no argument
-        return node;
-      }
-      int i_arg = 0;
-      // args = expr ("," expr)*
-      while (i_arg < MAX_ARGS) {
-        node->args_call[i_arg++] = expr();
-        if (consume(TK_RPARE))
-          break;
-        expect(TK_COMMA);
-      }
-      node->args_call[i_arg] = NULL;
-    } else if (consume(TK_LBBRA)) {  // assuming array accsess
-      get_ident_info(&node);
-      Node *add   = new_node(ND_ADD, node, expr());
-      Node *deref = new_node(ND_DEREF, add, NULL);
-      expect(TK_RBBRA);
-      return deref;
-    } else {  // assuming ident
-      get_ident_info(&node);
-      debug_print("node->name:%s %d\n", node->name, node->var->type->size);
-    }
+    get_ident_info(&node);
+    debug_print("node->name:%s %d\n", node->name, node->var->type->size);
     return node;
   } else {
     return new_node_number(expect_number());
