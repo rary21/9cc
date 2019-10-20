@@ -144,7 +144,7 @@ struct Type {
   int offset;
   int array_size;
   Map *members;
-  bool is_global;
+  char *name;
 };
 
 // local variable
@@ -154,6 +154,7 @@ struct LVar {
   int len;
   int offset;
   Type *type;
+  bool is_global;
 };
 
 typedef struct Node Node;

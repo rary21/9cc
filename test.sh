@@ -483,7 +483,7 @@ try 61 \
   }
 "
 
-try 8 \
+try 12 \
 " 
   struct test {
     char c;

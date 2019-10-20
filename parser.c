@@ -282,10 +282,10 @@ void struct_fix_alignment(Type *type) {
   for (int i = 0; i < members->len; i++) {
     Type *member = vector_get(members->vals, i);
     member->offset = roundup(size, member->align);
-    size = size + member->size;
+    size = member->offset + member->size;
   }
   type->size = roundup(size, 4);
-  debug_print("struct size : %d\n", size);
+  debug_print("struct size : %d\n", type->size);
 }
 
 void add_struct_type(char *name, Type *type) {
@@ -298,6 +298,7 @@ Type *consume_type() {
     Node *ident = expect_ident();
     if (consume(TK_LCBRA)) { // member definition
       type->members = struct_members();
+      type->name = ident->name;
       struct_fix_alignment(type);
       add_struct_type(ident->name, type);
     } else { // otherwise, struct already defined
@@ -397,6 +398,15 @@ void allocate_ident(Node** _node) {
       error("no type found for %s\n", node->name);
     
     node->var   = new_lvar;
+
+    if (!env->parent) {
+      debug_print("global %s\n", node->name);
+      new_lvar->is_global = true;
+    } else {
+      debug_print("local %s\n", node->name);
+      new_lvar->is_global = false;
+    }
+
     vector_push_back(env->locals, new_lvar);
   }
 }
@@ -515,14 +525,12 @@ Node* top() {
     type->ty         = ARRAY;
     type->array_size = expect_number();
     type->size       = type->array_size * type->size;
-    type->is_global  = true;
     expect(TK_RBBRA);
     expect(TK_SEMICOLON);
     node->type = type;
     allocate_ident(&node);
   } else if (node) {
     node->kind       = ND_GVAR_DECL;
-    type->is_global  = true;
     expect(TK_SEMICOLON);
     node->type = type;
     allocate_ident(&node);
@@ -907,6 +915,7 @@ Node* func_decl_def(Node *func_def, Type *ret_type) {
         // this is function declaration
         expect(TK_SEMICOLON);
         func_def->kind = ND_FUNC_DECL;
+        env = env->parent;
         return func_def;
       }
       func_def->body = statement(); // must be compound statement

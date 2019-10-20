@@ -26,7 +26,7 @@ const char* get_fncdef_reg(int i_arg, Node *node) {
 
 void gen_lval(Node *node) {
   if (node->kind == ND_IDENT) {
-    if (node->type->is_global) {
+    if (node->var->is_global) {
       printf("  lea rax, %s[rip]            # generate global lvalue\n", node->name);
       printf("  push rax\n");
     } else {
