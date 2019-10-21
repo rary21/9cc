@@ -512,4 +512,22 @@ try 45 \
     return ss.b - ss.a;
   }
 "
+
+try 45 \
+" 
+  int printf();
+  struct test {
+    char *str;
+    int b;
+    char c;
+  };
+  int main () {
+    struct test ss;
+    ss.str = \"abc\";
+    printf(\"%s\\n\", ss.str);
+    ss.b = 300;
+    ss.c = 255;
+    return ss.b - ss.c;
+  }
+"
 echo OK

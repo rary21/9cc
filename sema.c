@@ -69,7 +69,10 @@ bool valid_assignment(Node *node1, Node *node2) {
 }
 
 Node* cast(Node* node, Type* to) {
+  // preserve struct member offset before make clone
+  int offset = node->type->offset;
   node->type = clone_type(to);
+  node->type->offset = offset;
   return node;
 }
 
