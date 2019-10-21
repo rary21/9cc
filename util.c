@@ -8,6 +8,24 @@ void error(char *fmt, ...) {
   exit(1);
 }
 
+void error_node(Node *node, char *fmt, ...) {
+  Token *token;
+  while (1) {
+    node = node->lhs;
+    if (node->token)
+      break;
+    node = node->rhs;
+    if (node->token)
+      break;
+    node = node->lhs;
+  }
+  va_list ap;
+  va_start(ap, fmt);
+  fprintf(stderr, "LINE:%d ", get_line_number(token));
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
 
 void print_token(Token *tkn) {
   debug_print("kind: %d value: %d str[0]: %c\n", tkn->kind, tkn->val, tkn->str[0]);

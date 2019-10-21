@@ -50,6 +50,8 @@ typedef enum {
   TK_ASSIGN,      // assignment "="
   TK_SEMICOLON,   // semicolon ";"
   TK_COMMA,       // comma ","
+  TK_DOT,         // dot "."
+  TK_ARROW,       // arrow "->"
   TK_RETURN,      // return
   TK_IF,          // if
   TK_ELSE,        // else
@@ -106,6 +108,8 @@ typedef enum {
   ND_FUNC_DEF,    // function definition
   ND_ADDR,        // "&"
   ND_DEREF,       // "*"
+  ND_DOT,         // "."
+  ND_ARROW,       // "->"
   ND_CAST,        // cast
   ND_SIZEOF,      // sizeof
   ND_LVAR_DECL,   // local variable declaration
@@ -208,6 +212,7 @@ void gen(Node *node);
 
 // utiliry
 void error(char *fmt, ...);
+void error_node(Node *node, char *fmt, ...);
 void print_token(Token *tkn);
 void print_token_recursive(Token *tkn);
 void print_node(Node *node);

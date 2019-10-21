@@ -17,6 +17,12 @@ void check_int(Node *node) {
   if (!is_int(node))
     error("got not int\n");
 }
+bool is_char(Node *node) {
+  return node->type->ty == CHAR;
+}
+bool is_num(Node *node) {
+  return is_int(node) || is_char(node);
+}
 bool is_ptr(Node *node) {
   return node->type->ty == PTR || node->type->ty == ARRAY;
 }
@@ -43,8 +49,39 @@ bool same_size(Node *n1, Node *n2) {
   return n1->type->size == n2->type->size;
 }
 
+Type *clone_type(Type *_type) {
+  Type *type = _type;
+  Type *clone = calloc(1, sizeof(Type));
+  clone->ty = type->ty;
+  clone->size = type->size;
+  clone->align = type->align;
+
+  if (!type->ptr_to)
+    return clone;
+
+  Type *ptr_to = clone_type(type->ptr_to);
+  clone->ptr_to = ptr_to;
+  return clone;
+}
+
+bool valid_assignment(Node *node1, Node *node2) {
+  return (is_num(node1) && is_num(node2)) || (is_ptr(node1) && is_ptr(node2));
+}
+
 Node* cast(Node* node, Type* to) {
-  node->type = to;
+  node->type = clone_type(to);
+  return node;
+}
+
+Node *cast_to_same_type(Node *node) {
+  int lsize = node->lhs->type->size;
+  int rsize = node->rhs->type->size;
+  if (lsize > rsize) {
+    node->rhs = cast(node->rhs, node->lhs->type);
+  } else if (lsize < rsize) {
+    node->lhs = cast(node->lhs, node->rhs->type);
+  }
+  node->type = clone_type(node->lhs->type);
   return node;
 }
 
@@ -106,14 +143,14 @@ Node* do_walk(Node* node, bool decay) {
     if (is_ptr(node->lhs) && is_ptr(node->rhs)) {
       error("pointer addition is not supported");
     }
-    if (is_int(node->lhs) && is_ptr(node->rhs)) {
+    if (is_num(node->lhs) && is_ptr(node->rhs)) {
       node->lhs = scale_ptr(ND_MUL, node->lhs, node->rhs->type);
       node->type = node->rhs->type;
-    } else if (is_ptr(node->lhs) && is_int(node->rhs)) {
+    } else if (is_ptr(node->lhs) && is_num(node->rhs)) {
       node->rhs = scale_ptr(ND_MUL, node->rhs, node->lhs->type);
       node->type = node->lhs->type;
     } else {
-      node->type = new_type_int();
+      node = cast_to_same_type(node);
     }
     debug_print("add end %s %d\n", node->lhs->name, node->rhs->val);
     return node;
@@ -127,10 +164,11 @@ Node* do_walk(Node* node, bool decay) {
       if (!same_type(node->lhs->type, node->rhs->type))
         error("pointer subtraction with different type");
       node       = scale_ptr(ND_DIV, node, node->lhs->type);
-      node->type = node->lhs->type;
-    } else {
       node->type = new_type_int();
+    } else {
+      node = cast_to_same_type(node);
     }
+    debug_print("sub end %d %d\n", node->lhs->type->ty, node->rhs->type->ty);
     debug_print("sub end %s %d\n", node->lhs->name, node->rhs->val);
     return node;
   case ND_MUL:
@@ -170,6 +208,16 @@ Node* do_walk(Node* node, bool decay) {
     node->statement = walk(node->statement);
     node->type = node->rhs->type;
     return node;
+  case ND_DOT:
+    node->lhs = walk(node->lhs);
+    if (node->lhs->type->ty != STRUCT)
+      error("invalid dot operation");
+    Type *member = map_find(node->lhs->type->members, node->rhs->name);
+    if (!member)
+      error("%s not found in member list of %s", node->rhs->name, node->lhs->name);
+    debug_print("member ****** %s %d\n", node->rhs->name, member->offset);
+    node->type = member;
+    return node;
   case ND_SIZEOF:
     node->lhs  = walk(node->lhs);
     if (node->lhs->type->ty == ARRAY) {
@@ -205,6 +253,9 @@ Node* do_walk(Node* node, bool decay) {
     node->lhs = walk(node->lhs);
     debug_put("assign mid\n");
     node->rhs = walk(node->rhs);
+    if (!valid_assignment(node->lhs, node->rhs)) {
+      error("invalid assignment");
+    }
     if (is_8(node->lhs)) {
       node->rhs = cast(node->rhs, new_type_char());
     }

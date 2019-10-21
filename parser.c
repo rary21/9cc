@@ -4,8 +4,8 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_EQ", "ND_NE", "ND_LT",
    "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_LITERAL", "ND_ASSIGN", "ND_RETURN",
    "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DECL", "ND_FUNC_DEF",
-   "ND_ADDR", "ND_DEREF", "ND_CAST", "ND_SIZEOF", "ND_LVAR_DECL", "ND_LVAR_INIT", "ND_GVAR_DECL",
-   "ND_ARG_DECL", "ND_POSTINC", "ND_NONE"};
+   "ND_ADDR", "ND_DEREF", "ND_DOT", "ND_ARROW", "ND_CAST", "ND_SIZEOF", "ND_LVAR_DECL",
+   "ND_LVAR_INIT", "ND_GVAR_DECL", "ND_ARG_DECL", "ND_POSTINC", "ND_NONE"};
 
 typedef struct Env Env;
 struct Env {
@@ -525,6 +525,7 @@ Node* top() {
     type->ty         = ARRAY;
     type->array_size = expect_number();
     type->size       = type->array_size * type->size;
+    debug_print("arraysize %d\n", type->size);
     expect(TK_RBBRA);
     expect(TK_SEMICOLON);
     node->type = type;
@@ -816,6 +817,8 @@ Node* unary() {
 //               | primary ("++" | "--")
 //               | primary "[" expr "]"
 //               | primary "(" args_def ")"
+//               | primary "." primary
+//               | primary "->" primary
 Node* postfix() {
   debug_put("postfix\n");
   Node *node = primary();
@@ -846,9 +849,12 @@ Node* postfix() {
     node->args_call[i_arg] = NULL;
   } else if (consume(TK_LBBRA)) {  // assuming array accsess
     Node *add   = new_node(ND_ADD, node, expr());
-    Node *deref = new_node(ND_DEREF, add, NULL);
+    node = new_node(ND_DEREF, add, NULL);
     expect(TK_RBBRA);
-    return deref;
+  } else if (consume(TK_DOT)) {
+    node = new_node(ND_DOT, node, expect_ident());
+  } else if (consume(TK_ARROW)) {
+    node = new_node(ND_ARROW, node, expect_ident());
   }
 
   return node;

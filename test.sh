@@ -18,6 +18,7 @@ try() {
       exit 1
     fi
   else
+    echo $input
     echo "error in 9cc"
     exit 1
   fi
@@ -294,15 +295,14 @@ try 199 \
   }
 "
 
-try 99 \
+try 100 \
 "
-  char str[100];
+  char str[10];
+  char ccc[10];
   int main() {
-    int a;
-    str[1] = -1;
-    str[0] = 100;
-    a = str[0] + str[1];
-    return a;
+    str[0] = 50;
+    ccc[0] = 100;
+    return ccc[0];
   }
 "
 
@@ -318,7 +318,7 @@ try 99 \
     c = 5000;
     str[0] = a;
     str[1] = -1;
-     str[2] = a;
+    str[2] = a;
     str[3] = -3;
     a = str[0] + str[1];
     return a;
@@ -493,6 +493,23 @@ try 12 \
   int main () {
     struct test ss;
     return sizeof(ss);
+  }
+"
+
+try 45 \
+" 
+  struct test {
+    char a;
+    int b;
+    char c;
+  } a;
+  int main () {
+    struct test ss;
+    ss.a + ss.b;
+    ss.a = 255;
+    ss.b = ss.a;
+    ss.b = 300;
+    return ss.b - ss.a;
   }
 "
 echo OK

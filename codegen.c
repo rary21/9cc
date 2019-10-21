@@ -45,6 +45,11 @@ void gen_lval(Node *node) {
     printf("  push rax            # end generate lvalue,   offset:%d\n", offset);
   } else if (node->kind == ND_DEREF) {
     gen(node->lhs);  // node->lhs is ND_IDENT, so we just push value of it.
+  } else if (node->kind == ND_DOT) {
+    gen_lval(node->lhs);
+    printf("  pop rax\n");
+    printf("  add rax, %d\n", node->type->offset);
+    printf("  push rax\n");
   } else {
     error("gen_lval got %s", NODE_KIND_STR[node->kind]);
   }
@@ -77,6 +82,12 @@ void gen(Node *node) {
       gen(node->lhs);
       printf("  pop r10\n");
       printf("  mov rax, [r10]\n");
+      printf("  push rax\n");
+      return;
+    case ND_DOT:
+      gen_lval(node->lhs);
+      printf("  pop r10\n");
+      printf("  mov rax, [r10 + %d]\n", node->type->offset);
       printf("  push rax\n");
       return;
     case ND_IDENT:
@@ -218,7 +229,8 @@ void gen(Node *node) {
   const char *rreg = regs[1];
   if (!same_type(node->lhs->type, node->rhs->type) || !same_size(node->lhs, node->rhs))
   {
-    debug_print("%s %d\n", node->lhs->name, node->rhs->val);
+    debug_print("%d %d\n", node->lhs->type->ty, node->rhs->type->ty);
+    debug_print("%s\n", NODE_KIND_STR[node->kind]);
     error("not same type\n");
   }
   if (is_32(node->lhs))
