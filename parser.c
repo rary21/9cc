@@ -363,7 +363,7 @@ Type* find_struct_type(const char* str) {
       if (type)
         return type;
   }
-  return NULL;
+  error("struct %s not found", str);
 }
 
 // return LVar* which has same name, or NULL only in current block

@@ -108,6 +108,7 @@ Node* do_walk(Node* node, bool decay) {
   if (node == NULL)
     return NULL;
   debug_print("do_walk: %s %s\n", NODE_KIND_STR[node->kind], node->name);
+  Type *member;
   int i_block = 0;
 
   switch (node->kind) {
@@ -215,9 +216,21 @@ Node* do_walk(Node* node, bool decay) {
     node->lhs = walk(node->lhs);
     if (node->lhs->type->ty != STRUCT)
       error("invalid dot operation");
-    Type *member = map_find(node->lhs->type->members, node->rhs->name);
+    member = map_find(node->lhs->type->members, node->rhs->name);
     if (!member)
       error("%s not found in member list of %s", node->rhs->name, node->lhs->name);
+    debug_print("member ****** %s %d\n", node->rhs->name, member->offset);
+    node->type = member;
+    return node;
+  case ND_ARROW:
+    node->lhs = walk(node->lhs);
+    if (node->lhs->type->ty != PTR)
+      error("invalid arrow operation on not PTR");
+    if (node->lhs->type->ptr_to->ty != STRUCT)
+      error("invalid arrow operation on PTR of not STRUCT");
+    member = map_find(node->lhs->type->ptr_to->members, node->rhs->name);
+    if (!member)
+      error("%s not found in member list of %s", node->rhs->name, node->lhs->type->ptr_to->name);
     debug_print("member ****** %s %d\n", node->rhs->name, member->offset);
     node->type = member;
     return node;

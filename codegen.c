@@ -50,6 +50,11 @@ void gen_lval(Node *node) {
     printf("  pop rax\n");
     printf("  add rax, %d\n", node->type->offset);
     printf("  push rax\n");
+  } else if (node->kind == ND_ARROW) {
+    gen(node->lhs);
+    printf("  pop rax\n");
+    printf("  add rax, %d\n", node->type->offset);
+    printf("  push rax\n");
   } else {
     error("gen_lval got %s", NODE_KIND_STR[node->kind]);
   }
@@ -86,6 +91,12 @@ void gen(Node *node) {
       return;
     case ND_DOT:
       gen_lval(node->lhs);
+      printf("  pop r10\n");
+      printf("  mov rax, [r10 + %d]\n", node->type->offset);
+      printf("  push rax\n");
+      return;
+    case ND_ARROW:
+      gen(node->lhs);
       printf("  pop r10\n");
       printf("  mov rax, [r10 + %d]\n", node->type->offset);
       printf("  push rax\n");
