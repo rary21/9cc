@@ -130,10 +130,14 @@ Token* new_token(Token *cur, TokenKind kind, char **str) {
     len = TK_LEN_OF_KIND[kind];
   cur->next   = next;
   next->kind  = kind;
-  next->str   = *str;
   next->len   = len;
   next->start = *str;
   next->buf   = env->buf;
+
+  char *tmp = calloc(1, len + 1);
+  strncpy(tmp, *str, len);
+  tmp[len] = '\0';
+  next->str   = tmp;
 
   char s[256];
   strncpy(s, *str, len);
@@ -370,7 +374,6 @@ Token* tokenize(char *q) {
       Token *next = (Token*)calloc(1, sizeof(Token));
       cur->next   = next;
       next->kind  = TK_LITERAL;
-      next->str   = p;
       next->start = p;
       next->buf   = env->buf;
       printf(".LC%d:\n", literal_id);
@@ -382,8 +385,14 @@ Token* tokenize(char *q) {
         p++;
       }
       printf("\"\n");
-      next->len = p - next->str;
       next->end = p;
+      next->len = next->end - next->start;
+
+      char *str = calloc(1, next->len + 1);
+      strncpy(str, next->start, next->len);
+      str[next->len] = '\0';
+      next->str   = str;
+
       p++;
       cur->next  = next;
       cur = next;

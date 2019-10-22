@@ -233,10 +233,7 @@ Node* consume_ident() {
   Token *token = vector_get_front(vec_token);
   if (token->kind == TK_IDENT) {
     Node *node = new_node(ND_IDENT, NULL, NULL);
-    char *name = calloc(1, 1 + token->len);
-    strncpy(name, token->str, token->len);
-    name[token->len] = '\0';
-    node->name  = name;
+    node->name  = token->str;
     node->len   = token->len;
     node->kind  = ND_IDENT;
     node->token = token;
@@ -257,10 +254,7 @@ Node* consume_literal() {
   Token *token = vector_get_front(vec_token);
   if (token->kind == TK_LITERAL) {
     Node *node = new_node(ND_LITERAL, NULL, NULL);
-    char *name = calloc(1, 1 + token->len);
-    strncpy(name, token->str, token->len);
-    name[token->len] = '\0';
-    node->name         = name;
+    node->name         = token->str;
     node->kind         = ND_LITERAL;
     node->type         = new_type(PTR, NULL);
     node->token        = token;
@@ -521,10 +515,7 @@ Node* expect_lvar_decl() {
   Token *token = vector_get_front(vec_token);
   if (token->kind == TK_IDENT) {
     Node *node = new_node(ND_IDENT, NULL, NULL);
-    char *name = calloc(1, 1 + token->len);
-    strncpy(name, token->str, token->len);
-    name[token->len] = '\0';
-    node->name  = name;
+    node->name  = token->str;
     node->kind  = ND_LVAR_DECL;
     node->token = token;
     token = vector_pop_front(vec_token);
