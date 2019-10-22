@@ -42,15 +42,11 @@ Type* find_typedef(const char* str);
 
 Node* new_node(NodeKind, Node*, Node*);
 void allocate_ident(Node** _node);
+void copy_type_info(Type *to, Type *from);
 
 bool iseof() {
   Token *token = vector_get_front(vec_token);
   return token == NULL || token->kind == TK_EOF;
-}
-bool istype() {
-  Token *token = vector_get_front(vec_token);
-  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT ||
-         token->kind == TK_CONST;
 }
 bool istype_token(Token *token) {
   return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT ||
@@ -58,6 +54,7 @@ bool istype_token(Token *token) {
 }
 bool in_typedefs(char *str) {
   Env* _env;
+  debug_print("searching typedefs %s\n", str);
   for (_env = env; _env; _env = _env->parent) {
       Type *type = map_find(_env->typedefs, str);
       if (type)
@@ -73,6 +70,10 @@ bool is_type_spec() {
 bool is_type_qual() {
   Token *token = vector_get_front(vec_token);
   return token->kind == TK_CONST;
+}
+bool istype() {
+  Token *token = vector_get_front(vec_token);
+  return is_type_spec() || is_type_qual();
 }
 bool isstorage() {
   Token *token = vector_get_front(vec_token);
@@ -292,7 +293,13 @@ void consume_type_name(Type *type) {
     type->size = 0;
     type->align = 8;
   } else if (token->kind == TK_IDENT) {
-    type = find_typedef(token->str);
+    Type *_type = find_typedef(token->str);
+    // struct type need to be extracted from environment
+    if (_type->ty == STRUCT) {
+      _type = find_struct_type(_type->name);
+    }
+    copy_type_info(type, _type);
+    debug_print("typedef found %s\n", _type->name);
   } else {
     error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
   }
@@ -345,7 +352,8 @@ bool consume_type_spec(Type *type) {
   if (!is_type_spec())
     return false;
   consume_type_name(type);
-  if (type->ty == STRUCT) {
+  // if struct member is not defined.
+  if (type->ty == STRUCT && !type->members) {
     Node *ident = expect_ident();
     if (consume(TK_LCBRA)) { // member definition
       type->members = struct_members();
@@ -354,6 +362,8 @@ bool consume_type_spec(Type *type) {
       add_struct_type(ident->name, type);
     } else { // otherwise, struct already defined
       Type *_type = find_struct_type(ident->name);
+      if (!_type)
+        return true;
       copy_type_info(type, _type);
     }
   }
@@ -393,6 +403,8 @@ Type* consume_decl_spec_ptr() {
     consume_type_qual(type);
     consume_storage_spec(type);
   }
+  if (type->ty == INVALID)
+    error("no type spec given");
   int ptr_cnt = consume_ptrs();
 
   while (ptr_cnt > 0) {
@@ -443,7 +455,13 @@ Type* find_struct_type(const char* str) {
       if (type)
         return type;
   }
-  error("struct %s not found", str);
+  return NULL;
+}
+
+Type* add_typedef(char* str, Type *type) {
+  debug_print("typedef added %s\n", str);
+  type->name = str;
+  map_add(env->typedefs, str, type);
 }
 
 Type* find_typedef(const char* str) {
@@ -509,21 +527,6 @@ void get_ident_info(Node** _node) {
   node->var  = lvar;
   node->type = lvar->type;
   debug_print("getidentinfo %p\n", lvar);
-}
-
-Node* expect_lvar_decl() {
-  Token *token = vector_get_front(vec_token);
-  if (token->kind == TK_IDENT) {
-    Node *node = new_node(ND_IDENT, NULL, NULL);
-    node->name  = token->str;
-    node->kind  = ND_LVAR_DECL;
-    node->token = token;
-    token = vector_pop_front(vec_token);
-    return node;
-  } else {
-    error("expect identifier but got %s\n", TOKEN_KIND_STR[token->kind]);
-  }
-  return NULL;
 }
 
 // go to next token and return value if current token is TK_NUM
@@ -633,6 +636,11 @@ Node* top() {
     node->kind = ND_NONE;
   }
 
+  if (type->is_typedef) {
+    add_typedef(node->name, type);
+    node->kind = ND_NONE;
+  }
+
   return node;
 }
 
@@ -702,6 +710,9 @@ Node* statement() {
 Node* ident_init() {
   debug_put("ident_init\n");
   Node *ident = ident_decl();
+  // do not allocate if typedef
+  if (ident->type->is_typedef)
+    return ident;
   allocate_ident(&ident);
   if (consume(TK_ASSIGN)) {
     Node *lvar = new_node(ND_IDENT, NULL, NULL);
@@ -715,12 +726,25 @@ Node* ident_init() {
   return ident;
 }
 
-// ident_decl  = decl_spec "*"* ident ("[" num "]")?
+// ident_decl  = decl_spec "*"* ident? ("[" num "]")?
 Node* ident_decl() {
   debug_put("ident_decl\n");
   if (is_type_or_storage()) {
+    Token *token = vector_get_front(vec_token);
+    debug_print("current token is %s\n", token->str);
     Type *type  = consume_decl_spec_ptr();
-    Node *ident = expect_lvar_decl();
+    token = vector_get_front(vec_token);
+    debug_print("current token is %s\n", token->str);
+    Node *ident = consume_ident();
+
+    // ident is not null when variable is declared
+    // null when only struct type is declared
+    // struct type declaration do nothing after parse.
+    if (ident) {
+      ident->kind = ND_LVAR_DECL;
+    } else {
+      return new_node(ND_NONE, NULL, NULL);
+    }
     if (consume(TK_LBBRA)) {
       Type *deref_type = new_type(type->ty, type->ptr_to);
       type->ptr_to     = deref_type;
@@ -729,6 +753,10 @@ Node* ident_decl() {
       type->size       = type->array_size * type->size;
       expect(TK_RBBRA);
     }
+    // typedef
+    if (type->is_typedef)
+      add_typedef(ident->name, type);
+
     debug_print("size:%d\n", type->size);
     ident->type = type;
     debug_put("alloc end\n");

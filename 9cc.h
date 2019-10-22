@@ -153,12 +153,12 @@ struct Type {
   // for struct
   int offset;
   Map *members;
+  char *name;
   // for type-qualifier
   bool is_const;
   // for storage-specifier
   bool is_static;
   bool is_typedef;
-  char *name;
 };
 
 // local variable

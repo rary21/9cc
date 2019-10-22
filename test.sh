@@ -488,7 +488,7 @@ try 12 \
   struct test {
     char c;
     int b;
-    char c;
+    char d;
   } a;
   int main () {
     struct test ss;
@@ -556,8 +556,27 @@ try 45 \
     char c;
   };
   int main () {
-    const struct test ss;
+    struct test const ss;
     struct test *ptr;
+    ptr = &ss;
+    ptr->b = 300;
+    ptr->c = 255;
+    return ss.b - ss.c; 
+  }
+"
+
+try 45 \
+" 
+  typedef struct test test;
+  struct test {
+    char *str;
+    int b;
+    char c;
+  }a;
+  int main () {
+    a.b = 300;
+    test ss;
+    test *ptr;
     ptr = &ss;
     ptr->b = 300;
     ptr->c = 255;

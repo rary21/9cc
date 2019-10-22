@@ -102,6 +102,13 @@ Map *new_map() {
 }
 
 void map_add(Map *map, char *key, void *val) {
+  for (int i = 0; i < map->keys->len; i++) {
+    char *_key = vector_get(map->keys, i);
+    if (strlen(key) != strlen(_key))
+      continue;
+    if (0 == strncmp(key, _key, strlen(key)))
+      error("%s is already definied", key);
+  }
   vector_push_back(map->keys, key);
   vector_push_back(map->vals, val);
   map->len++;
