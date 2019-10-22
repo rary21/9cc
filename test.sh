@@ -547,4 +547,21 @@ try 45 \
     return ss.b - ss.c; 
   }
 "
+
+try 45 \
+" 
+  struct test {
+    char *str;
+    int b;
+    char c;
+  };
+  int main () {
+    const struct test ss;
+    struct test *ptr;
+    ptr = &ss;
+    ptr->b = 300;
+    ptr->c = 255;
+    return ss.b - ss.c; 
+  }
+"
 echo OK

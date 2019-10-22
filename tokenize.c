@@ -41,6 +41,9 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 6,        // struct
 6,        // define
 6,        // sizeof
+7,        // typedef
+6,        // static
+5,        // const
 1,        // End Of File
 };
 
@@ -48,7 +51,8 @@ const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
   {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPARE", "TK_RPARE", "TK_LCBRA", "TK_RCBRA", "TK_LBBRA",
    "TK_RBBRA", "TK_SQUOT", "TK_DQUOT", "TK_LITERAL", "TK_AND", "TK_SHARP", "TK_BACKSLASH", "TK_NEWLINE", "TK_NUM", "TK_EQ", "TK_NE",
    "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN", "TK_SEMICOLON", "TK_COMMA", "TK_DOT", "TK_ARROW", "TK_RETURN",
-   "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_INT", "TK_CHAR", "TK_STRUCT", "TK_DEFINE", "TK_SIZEOF", "TK_EOF"};
+   "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_INT", "TK_CHAR", "TK_STRUCT", "TK_DEFINE", "TK_SIZEOF", "TK_TYPEDEF", 
+   "TK_STATIC", "TK_CONST", "TK_EOF"};
 
 typedef struct Env Env;
 struct Env {
@@ -204,6 +208,18 @@ bool get_kind(char *p, TokenKind *kind) {
   }
   if (strncmp(p, "sizeof", 6) == 0 && !is_alnum(*(p+6))) {
     *kind = TK_SIZEOF;
+    return true;
+  }
+  if (strncmp(p, "typedef", 7) == 0 && !is_alnum(*(p+7))) {
+    *kind = TK_TYPEDEF;
+    return true;
+  }
+  if (strncmp(p, "static", 6) == 0 && !is_alnum(*(p+6))) {
+    *kind = TK_STATIC;
+    return true;
+  }
+  if (strncmp(p, "const", 5) == 0 && !is_alnum(*(p+5))) {
+    *kind = TK_CONST;
     return true;
   }
   if (*p == '+') {

@@ -8,6 +8,13 @@ void error(char *fmt, ...) {
   exit(1);
 }
 
+void warning(char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+}
+
 void error_node(Node *node, char *fmt, ...) {
   Token *token;
   while (1) {

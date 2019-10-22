@@ -114,6 +114,7 @@ void gen(Node *node) {
       gen_lval(node);
       return;
     case ND_ASSIGN:
+    case ND_VAR_INIT:
       gen_lval(node->lhs);
       gen(node->rhs);
       const char* reg = get_reg(1, node->rhs);

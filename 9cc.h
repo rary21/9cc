@@ -62,6 +62,9 @@ typedef enum {
   TK_STRUCT,      // struct
   TK_DEFINE,      // define
   TK_SIZEOF,      // sizeof
+  TK_TYPEDEF,     // typedef
+  TK_STATIC,      // static
+  TK_CONST,       // const
   TK_EOF,         // End Of File
   NUM_TOKEN_KIND,
 } TokenKind;
@@ -98,6 +101,7 @@ typedef enum {
   ND_IDENT,       // variable
   ND_LITERAL,     // literal
   ND_ASSIGN,      // assignment "="
+  ND_VAR_INIT,    // assignment "=" for initialize
   ND_RETURN,      // return
   ND_IF,          // if
   ND_WHILE,       // while
@@ -141,13 +145,19 @@ struct Map {
 
 typedef struct Type Type;
 struct Type {
-  enum {INT, CHAR, PTR, ARRAY, STRUCT} ty;
+  enum {INT, CHAR, PTR, ARRAY, STRUCT, INVALID} ty;
   struct Type *ptr_to;
   int size;
   int align;
-  int offset;
   int array_size;
+  // for struct
+  int offset;
   Map *members;
+  // for type-qualifier
+  bool is_const;
+  // for storage-specifier
+  bool is_static;
+  bool is_typedef;
   char *name;
 };
 
@@ -213,6 +223,7 @@ void gen(Node *node);
 // utiliry
 void error(char *fmt, ...);
 void error_node(Node *node, char *fmt, ...);
+void warning(char *fmt, ...);
 void print_token(Token *tkn);
 void print_token_recursive(Token *tkn);
 void print_node(Node *node);

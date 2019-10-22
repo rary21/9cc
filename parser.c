@@ -2,7 +2,7 @@
 
 const char* NODE_KIND_STR[NUM_NODE_KIND] =
   {"ND_ADD", "ND_SUB", "ND_MUL", "ND_DIV", "ND_NUM", "ND_EQ", "ND_NE", "ND_LT",
-   "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_LITERAL", "ND_ASSIGN", "ND_RETURN",
+   "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_LITERAL", "ND_ASSIGN", "ND_VAR_INIT", "ND_RETURN",
    "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DECL", "ND_FUNC_DEF",
    "ND_ADDR", "ND_DEREF", "ND_DOT", "ND_ARROW", "ND_CAST", "ND_SIZEOF", "ND_LVAR_DECL",
    "ND_LVAR_INIT", "ND_GVAR_DECL", "ND_ARG_DECL", "ND_POSTINC", "ND_NONE"};
@@ -11,6 +11,7 @@ typedef struct Env Env;
 struct Env {
   Vector *locals;
   Map *struct_types;
+  Map *typedefs;
   Env *parent;
 };
 
@@ -34,8 +35,10 @@ Node* primary();
 Node* func_decl_def(Node *node, Type *type);
 Node* ident_init();
 Node* ident_decl();
+Node* decl_spec();
 Map *struct_members();
 Type* find_struct_type(const char* str);
+Type* find_typedef(const char* str);
 
 Node* new_node(NodeKind, Node*, Node*);
 void allocate_ident(Node** _node);
@@ -46,11 +49,37 @@ bool iseof() {
 }
 bool istype() {
   Token *token = vector_get_front(vec_token);
-  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT;
+  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT ||
+         token->kind == TK_CONST;
 }
-
 bool istype_token(Token *token) {
-  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT;
+  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT ||
+         token->kind == TK_CONST;
+}
+bool in_typedefs(char *str) {
+  Env* _env;
+  for (_env = env; _env; _env = _env->parent) {
+      Type *type = map_find(_env->typedefs, str);
+      if (type)
+        return true;
+  }
+  return false;
+}
+bool is_type_spec() {
+  Token *token = vector_get_front(vec_token);
+  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT ||
+         in_typedefs(token->str);
+}
+bool is_type_qual() {
+  Token *token = vector_get_front(vec_token);
+  return token->kind == TK_CONST;
+}
+bool isstorage() {
+  Token *token = vector_get_front(vec_token);
+  return token->kind == TK_STATIC || token->kind == TK_TYPEDEF;
+}
+bool is_type_or_storage() {
+  return istype() || isstorage();
 }
 
 static bool consume(TokenKind kind) {
@@ -92,6 +121,11 @@ Type* new_type(int ty, Type *ptr_to) {
     type->size  = 0;
     type->align = 8;
   }
+  // const qualifier should be preserved
+  if (ptr_to)
+    type->is_const = ptr_to->is_const;
+
+  return type;
 }
 
 Type* new_type_int() {
@@ -100,6 +134,10 @@ Type* new_type_int() {
 
 Type* new_type_char() {
   return new_type(CHAR, NULL);
+}
+
+Type* new_type_struct() {
+  return new_type(STRUCT, NULL);
 }
 
 Type* new_type_none() {
@@ -245,21 +283,25 @@ int consume_ptrs() {
   return cnt;
 }
 
-int consume_type_name() {
-  Token *token = vector_get_front(vec_token);
+void consume_type_name(Type *type) {
+  Token *token = vector_pop_front(vec_token);
   if (token->kind == TK_INT) {
-    token = vector_pop_front(vec_token);
-    return INT;
+    type->ty = INT;
+    type->size = 4;
+    type->align = 4;
+  } else if (token->kind == TK_CHAR) {
+    type->ty = CHAR;
+    type->size = 1;
+    type->align = 1;
+  } else if (token->kind == TK_STRUCT) {
+    type->ty = STRUCT;
+    type->size = 0;
+    type->align = 8;
+  } else if (token->kind == TK_IDENT) {
+    type = find_typedef(token->str);
+  } else {
+    error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
   }
-  if (token->kind == TK_CHAR) {
-    token = vector_pop_front(vec_token);
-    return CHAR;
-  }
-  if (token->kind == TK_STRUCT) {
-    token = vector_pop_front(vec_token);
-    return STRUCT;
-  }
-  error("unsupported type %s\n", TOKEN_KIND_STR[token->kind]);
 }
 
 int get_size(int ty) {
@@ -292,8 +334,23 @@ void add_struct_type(char *name, Type *type) {
   map_add(env->struct_types, name, type);
 }
 
-Type *consume_type() {
-  Type *type = new_type(consume_type_name(), NULL);
+void copy_type_info(Type *to, Type *from) {
+  to->ty = from->ty;
+  to->ptr_to = from->ptr_to;
+  to->size = from->size;
+  to->align = from->align;
+  to->array_size = from->array_size;
+  to->offset = from->offset;
+  to->members = from->members;
+  to->name = from->name;
+}
+
+bool consume_type_spec(Type *type) {
+  if (type->ty != INVALID)
+    error("type_spec is already specified for this delcaration");
+  if (!is_type_spec())
+    return false;
+  consume_type_name(type);
   if (type->ty == STRUCT) {
     Node *ident = expect_ident();
     if (consume(TK_LCBRA)) { // member definition
@@ -302,18 +359,46 @@ Type *consume_type() {
       struct_fix_alignment(type);
       add_struct_type(ident->name, type);
     } else { // otherwise, struct already defined
-      type = find_struct_type(ident->name);
+      Type *_type = find_struct_type(ident->name);
+      copy_type_info(type, _type);
     }
   }
-
-  return type;
+  return true;
 }
 
-Type* consume_type_ptr() {
-  if (!istype())
+bool consume_type_qual(Type *type) {
+  if (!is_type_qual())
+    return false;
+
+  Token *token = vector_pop_front(vec_token);
+  if (token->kind == TK_CONST)
+    type->is_const = true;
+  return true;
+}
+
+bool consume_storage_spec(Type *type) {
+  if (!isstorage())
+    return false;
+
+  Token *token = vector_pop_front(vec_token);
+  if (token->kind == TK_STATIC)
+    type->is_static = true;
+  if (token->kind == TK_TYPEDEF)
+    type->is_typedef = true;
+  return true;
+}
+
+Type* consume_decl_spec_ptr() {
+  if (!is_type_or_storage())
     return NULL;
 
-  Type *type = consume_type();
+  Type *type = calloc(1, sizeof(Type));
+  type->ty   = INVALID;
+  while (is_type_or_storage()) {
+    consume_type_spec(type);
+    consume_type_qual(type);
+    consume_storage_spec(type);
+  }
   int ptr_cnt = consume_ptrs();
 
   while (ptr_cnt > 0) {
@@ -323,10 +408,10 @@ Type* consume_type_ptr() {
   return type;
 }
 
-Type* expect_type_ptr() {
-  if (!istype())
+Type* expect_decl_spec_ptr() {
+  if (!is_type_or_storage())
     error("no type found\n");
-  return consume_type_ptr();
+  return consume_decl_spec_ptr();
 }
 
 // go to next token and return true if current token has same kind
@@ -336,6 +421,7 @@ static Env* new_env(Env *parent) {
   env->parent       = parent;
   env->locals       = new_vector();
   env->struct_types = new_map();
+  env->typedefs     = new_map();
   return env;
 }
 
@@ -364,6 +450,16 @@ Type* find_struct_type(const char* str) {
         return type;
   }
   error("struct %s not found", str);
+}
+
+Type* find_typedef(const char* str) {
+  Env* _env;
+  for (_env = env; _env; _env = _env->parent) {
+      Type *type = map_find(_env->typedefs, str);
+      if (type)
+        return type;
+  }
+  error("typedef %s not found", str);
 }
 
 // return LVar* which has same name, or NULL only in current block
@@ -473,17 +569,22 @@ Token* get_token(int count) {
 //                  "{" statement* "}"
 //                  ident_init
 // ident_init     = ident_decl ("=" assignment)?
-// ident_decl     = type_spec pointer ident ("[" num "]")?
+// ident_decl     = decl_spec pointer ident ("[" num "]")?
+// param_decl     = spec_qual pointer ident ("[" num "]")?
+// decl_spec      = (storage_spec | type_spec | type_qual)*
+// spec_qual      = (type_spec | type_qual)*
 // type_spec      = int | char | struct_spec
+// type_qual      = const
 // pointer        = "*"*
 // struct_spec    = struct ident
+// storage_spec   = typedef
 // expr           = assignment
 // assignment     = equality ("=" assignment)*
 // equality       = relational ("==" relational | "!=" relational)*
 // relational     = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add            = mul ("+" mul | "-" mul)*
 // mul            = cast ("*" cast | "/" cast)*
-// cast           = unary | (type_spec pointer) cast
+// cast           = unary | (spec_qual pointer) cast
 // unary          = postfix
 //                  |("++" | "--")? unary
 //                  | unary_op cast
@@ -496,8 +597,8 @@ Token* get_token(int count) {
 //                  ident "[" expr "]" | \"characters\"
 // func_decl_def  = func_decl | func_def
 // func_decl      = type ident ("(" args_def ")") ";"
-// args_def       = ident_decl? ("," ident_decl)*
-// struct_members = ident_decl? (";" ident_decl)*
+// args_def       = param_decl? ("," param_decl)*
+// struct_members = param_decl? (";" param_decl)*
 void program() {
   int i = 0;
   Node *node;
@@ -514,7 +615,7 @@ void program() {
 Node* top() {
   Node *node;
   Type *type;
-  type = expect_type_ptr();
+  type = expect_decl_spec_ptr();
   node = consume_ident();
   if (look_token(TK_LPARE, 0)) {   // function definition
     node = func_decl_def(node, type);
@@ -596,7 +697,7 @@ Node* statement() {
       node->block[i_block++] = statement();
     env = env->parent;
     node->block[i_block] = NULL;
-  } else if (istype()) { // ident declaration
+  } else if (is_type_or_storage()) { // ident declaration
     node = ident_init();  // ident declaration will be used in semantic analysys
     expect(TK_SEMICOLON);// ident declaration ends with semicolon
   } else {
@@ -616,18 +717,18 @@ Node* ident_init() {
     lvar->name = ident->name;
     get_ident_info(&lvar);
     Node *init = expr();
-    Node *assign = new_node(ND_ASSIGN, lvar, init);
+    Node *assign = new_node(ND_VAR_INIT, lvar, init);
     Node *node   = new_node(ND_LVAR_INIT, ident, assign);
     return node;
   }
   return ident;
 }
 
-// ident_decl  = type "*"* ident ("[" num "]")?
+// ident_decl  = decl_spec "*"* ident ("[" num "]")?
 Node* ident_decl() {
   debug_put("ident_decl\n");
-  if (istype()) {
-    Type *type  = consume_type_ptr();
+  if (is_type_or_storage()) {
+    Type *type  = consume_decl_spec_ptr();
     Node *ident = expect_lvar_decl();
     if (consume(TK_LBBRA)) {
       Type *deref_type = new_type(type->ty, type->ptr_to);
@@ -747,7 +848,7 @@ Node* mul() {
   }
 }
 
-// cast        = unary | (type_spec pointer) cast
+// cast        = unary | (spec_qual pointer) cast
 static Node* cast() {
   debug_put("cast\n");
   Node *node;
@@ -757,7 +858,7 @@ static Node* cast() {
   while (1) {
     if (cur->kind == TK_LPARE && istype_token(next)) {
       consume(TK_LPARE);
-      Type *type = consume_type_ptr();
+      Type *type = consume_decl_spec_ptr();
       expect(TK_RPARE);
       node = new_node(ND_CAST, cast(), NULL);
       node->cast_to = type;

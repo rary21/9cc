@@ -269,6 +269,24 @@ Node* do_walk(Node* node, bool decay) {
     node->lhs = walk(node->lhs);
     debug_put("assign mid\n");
     node->rhs = walk(node->rhs);
+    if (node->lhs->type->is_const)
+      error("assignment of read-only variable %s", node->lhs->var->name);
+    if (node->rhs->type->is_const)
+      warning("assignment discards \'const\' qualifier");
+    if (!valid_assignment(node->lhs, node->rhs)) {
+      error("invalid assignment");
+    }
+    if (is_8(node->lhs)) {
+      node->rhs = cast(node->rhs, new_type_char());
+    }
+    node->type = node->lhs->type;
+    debug_put("assign end:\n");
+    return node;
+  case ND_VAR_INIT:
+    debug_print("assign start %s %s\n", node->lhs->name, node->rhs->name);
+    node->lhs = walk(node->lhs);
+    debug_put("assign mid\n");
+    node->rhs = walk(node->rhs);
     if (!valid_assignment(node->lhs, node->rhs)) {
       error("invalid assignment");
     }
