@@ -10,6 +10,7 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
 typedef struct Env Env;
 struct Env {
   Vector *locals;
+  Map *func_ret_types;
   Map *struct_types;
   Map *typedefs;
   Env *parent;
@@ -340,6 +341,10 @@ void struct_fix_alignment(Type *type) {
   debug_print("struct size : %d\n", type->size);
 }
 
+void add_func_ret_type(char *name, Type *type) {
+  map_add(env->func_ret_types, name, type);
+}
+
 void add_struct_type(char *name, Type *type) {
   map_add(env->struct_types, name, type);
 }
@@ -433,10 +438,11 @@ Type* expect_decl_spec_ptr() {
 // otherwise, return false
 static Env* new_env(Env *parent) {
   Env *env = calloc(1, sizeof(Env));
-  env->parent       = parent;
-  env->locals       = new_vector();
-  env->struct_types = new_map();
-  env->typedefs     = new_map();
+  env->parent         = parent;
+  env->locals         = new_vector();
+  env->func_ret_types = new_map();
+  env->struct_types   = new_map();
+  env->typedefs       = new_map();
   return env;
 }
 
@@ -452,6 +458,17 @@ LVar* find_lvar(const char* str, int len) {
       if (strncmp(lvar->name, str, len) == 0)
         return lvar;
     }
+  }
+  return NULL;
+}
+
+// return function return types which has same name, or NULL
+Type* find_func_ret_type(const char* str) {
+  Env* _env;
+  for (_env = env; _env; _env = _env->parent) {
+      Type *type = map_find(_env->func_ret_types, str);
+      if (type)
+        return type;
   }
   return NULL;
 }
@@ -969,7 +986,7 @@ Node* postfix() {
   } else if (consume(TK_LPARE)) { // assuming function call
     node->func_name = node->name; // copy to func_name
     node->kind      = ND_FUNC_CALL;
-    node->type      = new_type_int(); // TODO: supoprt any return type
+    node->type      = find_func_ret_type(node->func_name);
     if (consume(TK_RPARE)) { // if no argument
       return node;
     }
@@ -1029,6 +1046,7 @@ Node* func_decl_def(Node *func_def, Type *ret_type) {
   func_def->func_name = func_def->name;
   func_def->type      = ret_type;
 
+  add_func_ret_type(func_def->func_name, ret_type);
   allocate_ident(&func_def);
 
   if (func_def)

@@ -584,10 +584,12 @@ try 45 \
 
 try 1 \
 " 
-  void foo() {
+  int foo() {
+    return 1;
   }
   int main () {
-    return 1; 
+    int a = foo();
+    return a;
   }
 "
 echo OK
