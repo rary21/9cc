@@ -63,6 +63,11 @@ Type *clone_type(Type *_type) {
   clone->ptr_to = ptr_to;
   return clone;
 }
+Node *default_return() {
+  Node *ret = calloc(1, sizeof(Node));
+  ret->kind = ND_RETURN;
+  ret->lhs  = new_node_number(0);
+}
 
 bool valid_assignment(Node *node1, Node *node2) {
   return (is_num(node1) && is_num(node2)) || (is_ptr(node1) && is_ptr(node2));
@@ -355,6 +360,9 @@ Vector *sema(Vector *prog) {
         i_arg++;
       }
       walk(_prog->body);
+      // make sure return is called
+      // FIXME: should determine whether this is required or not for cleaner assembly
+      vector_push_back(_prog->body->block, default_return());
       _prog->locals_size = lvar_offset;
       vector_push_back(new_vec, _prog);
     } else {

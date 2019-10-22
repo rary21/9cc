@@ -36,7 +36,6 @@ int printQueen(int *queen)
         printf(\"%d \", queen[i]);
     }
     printf(\"\n\");
-    return 0;
 }
 
 int check(int *queen)
@@ -75,7 +74,6 @@ int main()
 {
     int queen[8];
     setQueen(queen, 0);
-    return 0;
 }
 "
 
@@ -587,7 +585,6 @@ try 45 \
 try 1 \
 " 
   void foo() {
-    return 0;
   }
   int main () {
     return 1; 
