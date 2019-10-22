@@ -15,11 +15,9 @@ struct Env {
   Env *parent;
 };
 
-Node *prog[100];
 Type *ptr_types[256];
 Env  *env;
 
-void program();
 Node* top();
 Node* statement();
 Node* expr();
@@ -593,17 +591,19 @@ Token* get_token(int count) {
 // func_decl      = type ident ("(" args_def ")") ";"
 // args_def       = param_decl? ("," param_decl)*
 // struct_members = param_decl? (";" param_decl)*
-void program() {
+Vector *program() {
   int i = 0;
   Node *node;
 
-  env    = new_env(NULL);
+  Vector *prog = new_vector();
+  env = new_env(NULL);
   while (node = top()) {
-    prog[i++] = node;
+    if (node->kind != ND_NONE)
+      vector_push_back(prog, node);
     if (iseof())
       break;
   }
-  prog[i] = NULL;
+  return prog;
 }
 
 Node* top() {
@@ -691,11 +691,15 @@ Node* statement() {
   } else if (consume(TK_LCBRA)) {  // block
     int i_block = 0;
     node = new_node(ND_BLOCK, NULL, NULL);
+    node->block = new_vector();
     env = new_env(env);
-    while (!consume(TK_RCBRA))
-      node->block[i_block++] = statement();
+    while (!consume(TK_RCBRA)) {
+      Node *stmt = statement();
+      if (stmt->kind == ND_NONE)
+        continue;
+      vector_push_back(node->block, stmt);
+    }
     env = env->parent;
-    node->block[i_block] = NULL;
   } else if (is_type_or_storage()) { // ident declaration
     node = ident_init();  // ident declaration will be used in semantic analysys
     expect(TK_SEMICOLON);// ident declaration ends with semicolon

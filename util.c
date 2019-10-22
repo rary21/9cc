@@ -95,6 +95,10 @@ void *vector_get_front(Vector *vec) {
   return vec->elem[vec->index];
 }
 
+void vector_update_elem(Vector *vec, int i, void *p) {
+  vec->elem[i] = p;
+}
+
 Map *new_map() {
   Map *map = calloc(1, sizeof(Map));
   map->keys = new_vector();

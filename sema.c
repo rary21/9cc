@@ -313,11 +313,14 @@ Node* do_walk(Node* node, bool decay) {
     return node;
   case ND_BLOCK:
     debug_put("block start\n");
-    while (node->block[i_block]) {
-      debug_print("i_block %d\n", i_block);
-      node->block[i_block] = walk(node->block[i_block]);
-      i_block++;
+    Vector *new_block = new_vector();
+    // eliminate ND_NONE node from block
+    for (int i = 0; i < node->block->len; i++) {
+      Node *elem = walk(vector_get(node->block, i));
+      if (elem->kind != ND_NONE)
+        vector_push_back(new_block, elem);
     }
+    node->block = new_block;
     debug_put("block end\n");
     return node;
   case ND_FUNC_CALL:
@@ -332,27 +335,29 @@ Node* do_walk(Node* node, bool decay) {
   }
 }
 
-void sema() {
-  int i_prog = 0;
-  while(prog[i_prog]) {
-    if (prog[i_prog]->kind == ND_GVAR_DECL ||
-        prog[i_prog]->kind == ND_NONE) {
-    } else if (prog[i_prog]->kind == ND_FUNC_DECL) {
-      prog[i_prog]->kind = ND_NONE;
-    } else if (prog[i_prog]->kind == ND_FUNC_DEF) {
+Vector *sema(Vector *prog) {
+  debug_print("prog lenght %d\n", prog->len);
+  Vector *new_vec = new_vector();
+  for (int i = 0; i < prog->len; i++) {
+    debug_print("get %d\n", i);
+    Node *_prog = vector_get(prog, i);
+    if (_prog->kind == ND_GVAR_DECL) {
+      vector_push_back(new_vec, _prog);
+    } else if (_prog->kind == ND_FUNC_DECL) {
+      _prog->kind = ND_NONE;
+    } else if (_prog->kind == ND_FUNC_DEF) {
       int i_arg = 0;
-      debug_print("sema %d %p\n", i_prog, prog[i_prog]->body);
       lvar_offset = 0;
-      while (prog[i_prog]->args_def[i_arg]) {
-        prog[i_prog]->args_def[i_arg] = walk(prog[i_prog]->args_def[i_arg]);
+      while (_prog->args_def[i_arg]) {
+        _prog->args_def[i_arg] = walk(_prog->args_def[i_arg]);
         i_arg++;
       }
-      walk(prog[i_prog]->body);
-      prog[i_prog]->locals_size = lvar_offset;
-      debug_print("sema %d offset%d\n", i_prog, prog[i_prog]->locals_size);
+      walk(_prog->body);
+      _prog->locals_size = lvar_offset;
+      vector_push_back(new_vec, _prog);
     } else {
-      error("unexpected toplevel node %s\n", NODE_KIND_STR[prog[i_prog]->kind]);
+      error("unexpected toplevel node %s\n", NODE_KIND_STR[_prog->kind]);
     }
-    i_prog++;
   }
+  return new_vec;
 }

@@ -43,18 +43,17 @@ int main(int argc, char **argv) {
   vec_token = preprocess();
   debug_put("preprocess is done\n");
 
-  program();
-  // Node* node = expr();
+  Vector *prog = program();
   debug_put("program is read\n");
 
-  sema();
+  prog = sema(prog);
 
-  int i = 0;
-  while (prog[i]) {
-    debug_print("program processing %d\n", i);
-    gen(prog[i]);
+  debug_print("prog length %d\n", prog->len);
+  for (int i = 0; i < prog->len; i++) {
+    Node *node = vector_get(prog, i);
+    debug_print("program processing %d %s\n", i, NODE_KIND_STR[node->kind]);
+    gen(vector_get(prog, i));
     debug_print("program processed %d\n", i);
-    i++;
   }
 
   printf("  mov rsp, rbp\n");

@@ -180,8 +180,8 @@ void gen(Node *node) {
       return;
     case ND_BLOCK:
       printf(" # start of block\n");
-      while(node->block[i_block]) {
-        gen(node->block[i_block++]);
+      for (int i = 0; i < node->block->len; i++) {
+        gen(vector_get(node->block, i));
         printf("  pop rax\n"); // discard previous value
       }
       printf("  push rax            # tmp\n");
@@ -227,9 +227,6 @@ void gen(Node *node) {
     case ND_GVAR_DECL:
       alignment = 32; // TODO: compute best alignment
       printf("  .comm %s,%d,%d\n", node->name, node->type->size, alignment);
-      return;
-    case ND_NONE:
-      printf("  push 0              # tmp\n");
       return;
   }
 

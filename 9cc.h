@@ -186,7 +186,7 @@ struct Node {
   Node *body;                  // body of function
   Node *expr;                  // used in postfix increment
   int locals_size;             // total size of local variables
-  Node *block[256];            // used to represent block of code
+  Vector *block;            // used to represent block of code
   Node *args_call[MAX_ARGS+1]; // currently, support 6 arguments
   Node *args_def[MAX_ARGS+1];  // currently, support 6 arguments
   char label_s[256];           // label used in assembly
@@ -208,14 +208,13 @@ struct Node {
 // current token
 extern Token *token;
 extern Vector *vec_token;
-extern Node  *prog[];
 extern Type  *ptr_types[];
 
 // parser
 Token* tokenize(char *p);
 Vector *preprocess();
-void program();
-void sema();
+Vector *program();
+Vector *sema(Vector *);
 
 // codegen
 void gen(Node *node);
@@ -241,6 +240,7 @@ void *vector_pop_front(Vector *vec);
 void vector_push_back(Vector *vec, void *p);
 void *vector_get(Vector *vec, int i);
 void *vector_get_front(Vector *vec);
+void vector_update_elem(Vector *vec, int i, void *p);
 void map_add(Map *map, char *key, void *val);
 void *map_find(Map *map, const char* key);
 
