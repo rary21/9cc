@@ -583,4 +583,14 @@ try 45 \
     return ss.b - ss.c; 
   }
 "
+
+try 1 \
+" 
+  void foo() {
+    return 0;
+  }
+  int main () {
+    return 1; 
+  }
+"
 echo OK

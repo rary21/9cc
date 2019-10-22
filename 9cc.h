@@ -57,6 +57,7 @@ typedef enum {
   TK_ELSE,        // else
   TK_WHILE,       // while
   TK_FOR,         // for
+  TK_VOID,        // void
   TK_INT,         // int
   TK_CHAR,        // char
   TK_STRUCT,      // struct
@@ -145,7 +146,7 @@ struct Map {
 
 typedef struct Type Type;
 struct Type {
-  enum {INT, CHAR, PTR, ARRAY, STRUCT, INVALID} ty;
+  enum {VOID, INT, CHAR, PTR, ARRAY, STRUCT, INVALID} ty;
   struct Type *ptr_to;
   int size;
   int align;

@@ -46,10 +46,6 @@ bool iseof() {
   Token *token = vector_get_front(vec_token);
   return token == NULL || token->kind == TK_EOF;
 }
-bool istype_token(Token *token) {
-  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT ||
-         token->kind == TK_CONST;
-}
 bool in_typedefs(char *str) {
   Env* _env;
   debug_print("searching typedefs %s\n", str);
@@ -60,18 +56,27 @@ bool in_typedefs(char *str) {
   }
   return false;
 }
+bool is_type_spec_token(Token *token) {
+  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT ||
+         token->kind == TK_VOID || in_typedefs(token->str);
+}
 bool is_type_spec() {
   Token *token = vector_get_front(vec_token);
-  return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT ||
-         in_typedefs(token->str);
+  return is_type_spec_token(token);
+}
+bool is_type_qual_token(Token *token) {
+  return token->kind == TK_CONST;
 }
 bool is_type_qual() {
   Token *token = vector_get_front(vec_token);
-  return token->kind == TK_CONST;
+  return is_type_qual_token(token);
 }
 bool istype() {
   Token *token = vector_get_front(vec_token);
   return is_type_spec() || is_type_qual();
+}
+bool istype_token(Token *token) {
+  return is_type_spec_token(token) || is_type_qual_token(token);
 }
 bool isstorage() {
   Token *token = vector_get_front(vec_token);
@@ -286,6 +291,10 @@ void consume_type_name(Type *type) {
     type->ty = CHAR;
     type->size = 1;
     type->align = 1;
+  } else if (token->kind == TK_VOID) {
+    type->ty = VOID;
+    type->size = 0;
+    type->align = 0;
   } else if (token->kind == TK_STRUCT) {
     type->ty = STRUCT;
     type->size = 0;
@@ -305,6 +314,8 @@ void consume_type_name(Type *type) {
 
 int get_size(int ty) {
   Token *token = vector_get_front(vec_token);
+  if (ty == VOID)
+    return 0;
   if (ty == INT)
     return 4;
   if (ty == CHAR)

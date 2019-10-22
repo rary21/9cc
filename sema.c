@@ -1,6 +1,6 @@
 #include "9cc.h"
 
-int lvar_offset = 0;
+int lvar_offset;
 
 Node* do_walk(Node* node, bool decay);
 
@@ -124,6 +124,8 @@ Node* do_walk(Node* node, bool decay) {
     node = node->rhs; // rhs is assingment
     return node;
   case ND_LVAR_DECL:
+    if (node->var->type->ty == VOID)
+      error("local variable with void type");
     node->var->offset = lvar_offset + node->var->type->size;
     lvar_offset = lvar_offset + node->var->type->size;
     node->kind = ND_NONE;  // do nothing after semantic analysys

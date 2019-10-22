@@ -36,6 +36,7 @@ unsigned int TK_LEN_OF_KIND[NUM_TOKEN_KIND] = {
 4,        // else
 5,        // while
 3,        // for
+4,        // void
 3,        // int
 4,        // char
 6,        // struct
@@ -51,7 +52,7 @@ const char* TOKEN_KIND_STR[NUM_TOKEN_KIND] =
   {"TK_ADD", "TK_SUB", "TK_MUL", "TK_DIV", "TK_LPARE", "TK_RPARE", "TK_LCBRA", "TK_RCBRA", "TK_LBBRA",
    "TK_RBBRA", "TK_SQUOT", "TK_DQUOT", "TK_LITERAL", "TK_AND", "TK_SHARP", "TK_BACKSLASH", "TK_NEWLINE", "TK_NUM", "TK_EQ", "TK_NE",
    "TK_LT", "TK_LE", "TK_GT", "TK_GE", "TK_IDENT", "TK_ASSIGN", "TK_SEMICOLON", "TK_COMMA", "TK_DOT", "TK_ARROW", "TK_RETURN",
-   "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_INT", "TK_CHAR", "TK_STRUCT", "TK_DEFINE", "TK_SIZEOF", "TK_TYPEDEF", 
+   "TK_IF", "TK_ELSE", "TK_WHILE", "TK_FOR", "TK_VOID", "TK_INT", "TK_CHAR", "TK_STRUCT", "TK_DEFINE", "TK_SIZEOF", "TK_TYPEDEF", 
    "TK_STATIC", "TK_CONST", "TK_EOF"};
 
 typedef struct Env Env;
@@ -192,6 +193,10 @@ bool get_kind(char *p, TokenKind *kind) {
   }
   if (strncmp(p, "for", 3) == 0 && !is_alnum(*(p+3))) {
     *kind = TK_FOR;
+    return true;
+  }
+  if (strncmp(p, "void", 4) == 0 && !is_alnum(*(p+4))) {
+    *kind = TK_VOID;
     return true;
   }
   if (strncmp(p, "int", 3) == 0 && !is_alnum(*(p+3))) {
