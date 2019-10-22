@@ -582,14 +582,23 @@ try 45 \
   }
 "
 
-try 1 \
+try 100 \
 " 
-  int foo() {
-    return 1;
+  void *calloc();
+  typedef struct test test;
+  struct test {
+    char *str;
+    int b;
+    char c;
+  }a;
+  void* foo() {
+    test *a = calloc(1, sizeof(test));
+    a->b = 100;
+    return a;
   }
   int main () {
-    int a = foo();
-    return a;
+    test *a = foo();
+    return a->b;
   }
 "
 echo OK

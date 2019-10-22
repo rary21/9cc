@@ -1,6 +1,7 @@
 #include "9cc.h"
 
 int lvar_offset;
+Type *g_ret_type;
 
 Node* do_walk(Node* node, bool decay);
 
@@ -10,21 +11,33 @@ bool is_32(Node *node) {
 bool is_8(Node *node) {
   return node->type->size == 1;
 }
+bool is_int_type(Type *type) {
+  return type->ty == INT;
+}
 bool is_int(Node *node) {
-  return node->type->ty == INT;
+  return is_int_type(node->type);
 }
 void check_int(Node *node) {
   if (!is_int(node))
     error("got not int\n");
 }
+bool is_char_type(Type *type) {
+  return type->ty == CHAR;
+}
 bool is_char(Node *node) {
-  return node->type->ty == CHAR;
+  return is_char_type(node->type);
+}
+bool is_num_type(Type *type) {
+  return is_int_type(type) || is_char_type(type);
 }
 bool is_num(Node *node) {
   return is_int(node) || is_char(node);
 }
+bool is_ptr_type(Type *type) {
+  return type->ty == PTR || type->ty == ARRAY;
+}
 bool is_ptr(Node *node) {
-  return node->type->ty == PTR || node->type->ty == ARRAY;
+  return is_ptr_type(node->type);
 }
 bool is_narrowing(Type *type, Type *type_to) {
   return type->size > type_to->size;
@@ -255,6 +268,10 @@ Node* do_walk(Node* node, bool decay) {
     debug_put("return start\n");
     node->lhs = walk(node->lhs);
     node->type = node->lhs->type;
+    if (is_num(node->lhs) && is_ptr_type(g_ret_type))
+      warning("return makes pointer from integer without a cast");
+    if (is_ptr(node->lhs) && is_num_type(g_ret_type))
+      warning("return makes integer from pointer without a cast");
     debug_put("return end\n");
     return node;
   case ND_DEREF:
@@ -355,6 +372,7 @@ Vector *sema(Vector *prog) {
     } else if (_prog->kind == ND_FUNC_DEF) {
       int i_arg = 0;
       lvar_offset = 0;
+      g_ret_type = _prog->type;
       while (_prog->args_def[i_arg]) {
         _prog->args_def[i_arg] = walk(_prog->args_def[i_arg]);
         i_arg++;
