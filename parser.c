@@ -44,6 +44,7 @@ Map *enum_members();
 Type* find_struct_type(const char* str);
 Type* find_enum_type(const char* str);
 Type* find_typedef(const char* str);
+void add_symbol(char *name, void *p);
 
 Node* new_node(NodeKind, Node*, Node*);
 void allocate_ident(Node** _node);
@@ -373,8 +374,15 @@ void add_enum_type(char *name, Type *type) {
 }
 
 void add_enums(char *name, int val) {
-  debug_print("add_enums %s\n", name);
   map_add_int(env->enums, name, val);
+  add_symbol(name, NULL);
+}
+
+Type* add_typedef(char* str, Type *type) {
+  debug_print("typedef added %s\n", str);
+  type->name = str;
+  map_add(env->typedefs, str, type);
+  add_symbol(str, NULL);
 }
 
 // val can be anything since this is only used to detect multiple definition
@@ -565,12 +573,6 @@ bool find_enums(const char* str, int *val) {
   return false;
 }
 
-Type* add_typedef(char* str, Type *type) {
-  debug_print("typedef added %s\n", str);
-  type->name = str;
-  map_add(env->typedefs, str, type);
-}
-
 Type* find_typedef(const char* str) {
   Env* _env;
   for (_env = env; _env; _env = _env->parent) {
@@ -738,6 +740,10 @@ Node* top() {
   node = consume_ident();
   if (look_token(TK_LPARE, 0)) {   // function definition
     node = func_decl_def(node, type);
+  } else if (type->is_typedef) {
+    expect(TK_SEMICOLON);
+    add_typedef(node->name, type);
+    node->kind = ND_NONE;
   } else if (consume(TK_LBBRA)) {  // global array variable
     node->kind       = ND_GVAR_DECL;
     Type *deref_type = new_type(type->ty, type->ptr_to);
@@ -751,18 +757,13 @@ Node* top() {
     node->type = type;
     allocate_ident(&node);
   } else if (node) {
-    node->kind       = ND_GVAR_DECL;
     expect(TK_SEMICOLON);
+    node->kind       = ND_GVAR_DECL;
     node->type = type;
     allocate_ident(&node);
   } else { // struct type declaration
     expect(TK_SEMICOLON);
     node = calloc(1, sizeof(Node));
-    node->kind = ND_NONE;
-  }
-
-  if (type->is_typedef) {
-    add_typedef(node->name, type);
     node->kind = ND_NONE;
   }
 
@@ -1021,6 +1022,7 @@ static Node* cast() {
 //               |("++" | "--")+ unary
 //               | unary_op cast
 //               | sizeof unary
+//               | sizeof type
 // unary_op    = ("+" | "-" | "&" | "*")?
 Node* unary() {
   debug_put("unary\n");
@@ -1050,11 +1052,20 @@ Node* unary() {
 
   if (consume(TK_SIZEOF)) {
     Node *node;
+    Type *type;
     if (consume(TK_LPARE)) {
-      node = new_node(ND_SIZEOF, unary(), NULL);
+      type = consume_decl_spec_ptr();
+      if (type)
+        node = new_node_number(type->size);
+      else
+        node = new_node(ND_SIZEOF, unary(), NULL);
       expect(TK_RPARE);
     } else {
-      node = new_node(ND_SIZEOF, unary(), NULL);
+      type = consume_decl_spec_ptr();
+      if (type)
+        node = new_node_number(type->size);
+      else
+        node = new_node(ND_SIZEOF, unary(), NULL);
     }
     return node;
   }
@@ -1252,8 +1263,6 @@ Map *enum_members() {
       val = expect_number();
     map_add_int(map, node->name, val);
     add_enums(node->name, val);
-    // symbol table is used to detect multiple definition
-    add_symbol(node->name, NULL);
     val++;
     if (consume(TK_RCBRA))
       break;
