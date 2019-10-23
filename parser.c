@@ -427,10 +427,12 @@ bool consume_type_spec(Type *type) {
   if (type->ty == ENUM && !type->enums) {
     static int enum_cnt = 0;
     Node *ident = consume_ident();
-    char *name = ident->name;
+    char *name;
     if (!ident) {
-      name = calloc(1, 256 * sizeof(char));
+      name = calloc(1, 8 * sizeof(char));
       sprintf(name, "%s%d", "enum", enum_cnt);
+    } else {
+      name = ident->name;
     }
     if (consume(TK_LCBRA)) { // enum definition
       type->enums = enum_members();

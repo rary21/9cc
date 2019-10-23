@@ -85,12 +85,12 @@ try 55 \
     int i;
     a = 0;
     for (i=0;i<10;i=i+1) {
-      int c;
-      c = 0;
-      a = a+i+1;
-    }
-    return a;
-  }
+     int c;
+     c = 0;
+     a = a+i+1;
+   }
+   return a;
+ }
 "
 
 try 3 \
@@ -607,6 +607,23 @@ try 98 \
   int main () {
     int C = A;
     return C;
+  }
+"
+
+try 98 \
+" 
+  typedef struct Type Type;
+  struct Type {
+    enum {VOID, INT, CHAR, PTR, ARRAY, STRUCT, ENUM, INVALID} ty;
+    struct Type *ptr_to;
+    int size;
+    int align;
+    int array_size;
+  };
+  int main () {
+    Type type;
+    type.ty = ARRAY;
+    return type.ty;
   }
 "
 echo OK
