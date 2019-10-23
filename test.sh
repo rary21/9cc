@@ -610,7 +610,7 @@ try 98 \
   }
 "
 
-try 98 \
+try 4 \
 " 
   typedef struct Type Type;
   struct Type {
