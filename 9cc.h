@@ -64,6 +64,7 @@ typedef enum {
   TK_DEFINE,      // define
   TK_SIZEOF,      // sizeof
   TK_TYPEDEF,     // typedef
+  TK_ENUM,        // enum
   TK_STATIC,      // static
   TK_CONST,       // const
   TK_EOF,         // End Of File
@@ -146,7 +147,7 @@ struct Map {
 
 typedef struct Type Type;
 struct Type {
-  enum {VOID, INT, CHAR, PTR, ARRAY, STRUCT, INVALID} ty;
+  enum {VOID, INT, CHAR, PTR, ARRAY, STRUCT, ENUM, INVALID} ty;
   struct Type *ptr_to;
   int size;
   int align;
@@ -155,6 +156,8 @@ struct Type {
   int offset;
   Map *members;
   char *name;
+  // for enum
+  Map *enums;
   // for type-qualifier
   bool is_const;
   // for storage-specifier
@@ -243,6 +246,7 @@ void *vector_get(Vector *vec, int i);
 void *vector_get_front(Vector *vec);
 void vector_update_elem(Vector *vec, int i, void *p);
 void map_add(Map *map, char *key, void *val);
+void map_add_int(Map *map, char *key, int val);
 void *map_find(Map *map, const char* key);
 
 bool same_type(Type *t1, Type *t2);

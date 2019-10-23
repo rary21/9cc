@@ -12,7 +12,7 @@ bool is_8(Node *node) {
   return node->type->size == 1;
 }
 bool is_int_type(Type *type) {
-  return type->ty == INT;
+  return type->ty == INT || type->ty == ENUM;
 }
 bool is_int(Node *node) {
   return is_int_type(node->type);

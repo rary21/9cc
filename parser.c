@@ -12,6 +12,9 @@ struct Env {
   Vector *locals;
   Map *func_ret_types;
   Map *struct_types;
+  Map *enum_types;
+  Map *enums;   // used to detecte mltiple definition (for enum)
+  Map *symbols; // used to detect multiple definition (for variable and enum)
   Map *typedefs;
   Env *parent;
 };
@@ -31,12 +34,15 @@ static Node* cast();
 Node* unary();
 Node* postfix();
 Node* primary();
+Node *constant_number();
 Node* func_decl_def(Node *node, Type *type);
 Node* ident_init();
 Node* ident_decl();
 Node* decl_spec();
 Map *struct_members();
+Map *enum_members();
 Type* find_struct_type(const char* str);
+Type* find_enum_type(const char* str);
 Type* find_typedef(const char* str);
 
 Node* new_node(NodeKind, Node*, Node*);
@@ -57,9 +63,15 @@ bool in_typedefs(char *str) {
   }
   return false;
 }
+bool in_enums_block(Env *env, char *str) {
+  int *val = map_find(env->enums, str);
+  if (val)
+    return true;
+  return false;
+}
 bool is_type_spec_token(Token *token) {
   return token->kind == TK_INT || token->kind == TK_CHAR || token->kind == TK_STRUCT ||
-         token->kind == TK_VOID || in_typedefs(token->str);
+         token->kind == TK_VOID || token->kind == TK_ENUM || in_typedefs(token->str);
 }
 bool is_type_spec() {
   Token *token = vector_get_front(vec_token);
@@ -300,11 +312,18 @@ void consume_type_name(Type *type) {
     type->ty = STRUCT;
     type->size = 0;
     type->align = 8;
+  } else if (token->kind == TK_ENUM) {
+    // consider enum is int
+    type->ty = ENUM;
+    type->size = 4;
+    type->align = 4;
   } else if (token->kind == TK_IDENT) {
     Type *_type = find_typedef(token->str);
     // struct type need to be extracted from environment
     if (_type->ty == STRUCT) {
       _type = find_struct_type(_type->name);
+    } else if (_type->ty == ENUM) {
+      _type = find_enum_type(_type->name);
     }
     copy_type_info(type, _type);
     debug_print("typedef found %s\n", _type->name);
@@ -349,6 +368,20 @@ void add_struct_type(char *name, Type *type) {
   map_add(env->struct_types, name, type);
 }
 
+void add_enum_type(char *name, Type *type) {
+  map_add(env->enum_types, name, type);
+}
+
+void add_enums(char *name, int val) {
+  debug_print("add_enums %s\n", name);
+  map_add_int(env->enums, name, val);
+}
+
+// val can be anything since this is only used to detect multiple definition
+void add_symbol(char *name, void* val) {
+  map_add(env->symbols, name, val);
+}
+
 void copy_type_info(Type *to, Type *from) {
   to->ty = from->ty;
   to->ptr_to = from->ptr_to;
@@ -357,6 +390,7 @@ void copy_type_info(Type *to, Type *from) {
   to->array_size = from->array_size;
   to->offset = from->offset;
   to->members = from->members;
+  to->enums = from->enums;
   to->name = from->name;
 }
 
@@ -366,7 +400,7 @@ bool consume_type_spec(Type *type) {
   if (!is_type_spec())
     return false;
   consume_type_name(type);
-  // if struct member is not defined.
+  // if struct member is not defined, definition is expected
   if (type->ty == STRUCT && !type->members) {
     Node *ident = expect_ident();
     if (consume(TK_LCBRA)) { // member definition
@@ -376,6 +410,26 @@ bool consume_type_spec(Type *type) {
       add_struct_type(ident->name, type);
     } else { // otherwise, struct already defined
       Type *_type = find_struct_type(ident->name);
+      if (!_type)
+        return true;
+      copy_type_info(type, _type);
+    }
+  }
+  // if enum content is not defined, definition is expected
+  if (type->ty == ENUM && !type->enums) {
+    static int enum_cnt = 0;
+    Node *ident = consume_ident();
+    char *name = ident->name;
+    if (!ident) {
+      name = calloc(1, 256 * sizeof(char));
+      sprintf(name, "%s%d", "enum", enum_cnt);
+    }
+    if (consume(TK_LCBRA)) { // enum definition
+      type->enums = enum_members();
+      type->name  = name;
+      add_enum_type(name, type);
+    } else { // otherwise, enum already defined
+      Type *_type = find_enum_type(name);
       if (!_type)
         return true;
       copy_type_info(type, _type);
@@ -442,6 +496,9 @@ static Env* new_env(Env *parent) {
   env->locals         = new_vector();
   env->func_ret_types = new_map();
   env->struct_types   = new_map();
+  env->enum_types     = new_map();
+  env->enums          = new_map();
+  env->symbols        = new_map();
   env->typedefs       = new_map();
   return env;
 }
@@ -484,6 +541,30 @@ Type* find_struct_type(const char* str) {
   return NULL;
 }
 
+// return enum types which has same name, or NULL
+Type* find_enum_type(const char* str) {
+  Env* _env;
+  for (_env = env; _env; _env = _env->parent) {
+      Type *type = map_find(_env->enum_types, str);
+      if (type)
+        return type;
+  }
+  return NULL;
+}
+
+// return value of corresponding enum
+bool find_enums(const char* str, int *val) {
+  Env* _env;
+  for (_env = env; _env; _env = _env->parent) {
+      int *_val = map_find(_env->enums, str);
+      if (_val) {
+        *val = *_val;
+        return true;
+      }
+  }
+  return false;
+}
+
 Type* add_typedef(char* str, Type *type) {
   debug_print("typedef added %s\n", str);
   type->name = str;
@@ -502,6 +583,19 @@ Type* find_typedef(const char* str) {
 
 // return LVar* which has same name, or NULL only in current block
 LVar* find_lvar_current_block(const char* str, int len) {
+  for (int i = 0; i < env->locals->len; i++) {
+    LVar *lvar = vector_get(env->locals, i);
+    // skip if name length is diffrent
+    if (lvar->len != len)
+      continue;
+    if (strncmp(lvar->name, str, len) == 0)
+      return lvar;
+  }
+  return NULL;
+}
+
+// return LVar* which has same name, or NULL only in current block
+LVar* find_lvar_block(Env *env, const char* str, int len) {
   for (int i = 0; i < env->locals->len; i++) {
     LVar *lvar = vector_get(env->locals, i);
     // skip if name length is diffrent
@@ -542,6 +636,8 @@ void allocate_ident(Node** _node) {
     }
 
     vector_push_back(env->locals, new_lvar);
+    // symbol table is used to detect multiple definition
+    add_symbol(node->name, NULL);
   }
 }
 
@@ -593,10 +689,11 @@ Token* get_token(int count) {
 // param_decl     = spec_qual pointer ident ("[" num "]")?
 // decl_spec      = (storage_spec | type_spec | type_qual)*
 // spec_qual      = (type_spec | type_qual)*
-// type_spec      = int | char | struct_spec
+// type_spec      = int | char | struct_spec | enum_spec | typedef_spec
 // type_qual      = const
 // pointer        = "*"*
 // struct_spec    = struct ident
+// enum_spec      = enum ident
 // storage_spec   = typedef
 // expr           = assignment
 // assignment     = equality ("=" assignment)*
@@ -1012,7 +1109,9 @@ Node* postfix() {
   return node;
 }
 
-// primary    = num | ident | "(" expr ")" | \"characters\"
+// primary         = constant | ident | "(" expr ")" | \"characters\"
+// constant        = constant_number | enum_constant
+// constant_number = integer
 Node* primary() {
   debug_put("primary\n");
   Node* node;
@@ -1024,13 +1123,45 @@ Node* primary() {
     return node;
   } else if (node = consume_literal()) { // literal
     return node;
+  } else if (node = constant_number()){ // constant
+    return node;
   } else if (node = consume_ident()) {
-    debug_print("%s found\n", node->name);
-    get_ident_info(&node);
-    debug_print("node->name:%s %d\n", node->name, node->var->type->size);
+    // search enum or variable to use
+    // assuming that same name is not present in the same block scope
+    // this must be prevented by the symbol table
+    int val;
+    Env *_env;
+    debug_print("finding %s\n", node->name);
+    for (_env = env; _env; _env = _env->parent) {
+      if (in_enums_block(_env, node->name)) {
+        find_enums(node->name, &val);
+        node = new_node_number(val);
+        break;
+      }
+      if (find_lvar_block(_env, node->name, strlen(node->name))) {
+        get_ident_info(&node);
+        break;
+      }
+    }
+    // if no enum or variable found
+    if (!_env)
+      error("no enum or variable found matching to name of %s", node->name);
     return node;
   } else {
-    return new_node_number(expect_number());
+    error("unexpected token in primary");
+  }
+}
+
+Node *constant_number() {
+  debug_put("constant_number\n");
+  Token *token = vector_get_front(vec_token);
+  int val;
+
+  if (token->kind == TK_NUM) {
+    vector_pop_front(vec_token);
+    return new_node_number(token->val);
+  } else {
+    return NULL;
   }
 }
 
@@ -1092,10 +1223,42 @@ Map *struct_members() {
 
   while (1) {
     Node *node = ident_decl();
-    if (!node && consume(TK_RCBRA))
-      break;
+    if (!node) {
+      if (consume(TK_RCBRA))
+        break;
+      else
+        error("unexpected token in struct member definition");
+    }
     expect(TK_SEMICOLON);
     map_add(map, node->name, node->type);
+  }
+  return map;
+}
+
+// enum_members = ident "= num"? "," (ident "= num"? ",")* "}"
+Map *enum_members() {
+  Map *map = new_map();
+
+  int val = 0;
+  while (1) {
+    Node *node = consume_ident();
+    if (!node) {
+      if (consume(TK_RCBRA))
+        break;
+      else
+        error("unexpected token in enum member definition");
+    }
+    if (consume(TK_ASSIGN))
+      val = expect_number();
+    map_add_int(map, node->name, val);
+    add_enums(node->name, val);
+    // symbol table is used to detect multiple definition
+    add_symbol(node->name, NULL);
+    val++;
+    if (consume(TK_RCBRA))
+      break;
+    else
+      expect(TK_COMMA);
   }
   return map;
 }

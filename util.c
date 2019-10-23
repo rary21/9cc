@@ -118,6 +118,21 @@ void map_add(Map *map, char *key, void *val) {
   map->len++;
 }
 
+void map_add_int(Map *map, char *key, int _val) {
+  int *val = calloc(1, sizeof(int));
+  *val = _val;
+  for (int i = 0; i < map->keys->len; i++) {
+    char *_key = vector_get(map->keys, i);
+    if (strlen(key) != strlen(_key))
+      continue;
+    if (0 == strncmp(key, _key, strlen(key)))
+      error("%s is already definied", key);
+  }
+  vector_push_back(map->keys, key);
+  vector_push_back(map->vals, val);
+  map->len++;
+}
+
 // NULL terminated key should be given
 void *map_find(Map *map, const char* key) {
   for (int i = 0; i < map->keys->len; i++) {

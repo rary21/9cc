@@ -489,8 +489,7 @@ try 12 \
     char d;
   } a;
   int main () {
-    struct test ss;
-    return sizeof(ss);
+    return sizeof(a);
   }
 "
 
@@ -599,6 +598,15 @@ try 100 \
   int main () {
     test *a = foo();
     return a->b;
+  }
+"
+
+try 98 \
+" 
+  enum test {A=98, B, C} typedef test;
+  int main () {
+    int C = A;
+    return C;
   }
 "
 echo OK
