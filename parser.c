@@ -5,7 +5,7 @@ const char* NODE_KIND_STR[NUM_NODE_KIND] =
    "ND_LE", "ND_GT", "ND_GE", "ND_IDENT", "ND_LITERAL", "ND_ASSIGN", "ND_VAR_INIT", "ND_RETURN",
    "ND_IF", "ND_WHILE", "ND_FOR", "ND_BLOCK", "ND_FUNC_CALL", "ND_FUNC_DECL", "ND_FUNC_DEF",
    "ND_ADDR", "ND_DEREF", "ND_DOT", "ND_ARROW", "ND_CAST", "ND_SIZEOF", "ND_LVAR_DECL",
-   "ND_LVAR_INIT", "ND_GVAR_DECL", "ND_ARG_DECL", "ND_POSTINC", "ND_NONE"};
+   "ND_LVAR_INIT", "ND_GVAR_DECL", "ND_GVAR_INIT", "ND_ARG_DECL", "ND_POSTINC", "ND_NONE"};
 
 typedef struct Env Env;
 struct Env {
@@ -98,6 +98,9 @@ bool isstorage() {
 }
 bool is_type_or_storage() {
   return istype() || isstorage();
+}
+bool is_global_scope() {
+  return env->parent == NULL;
 }
 
 static bool consume(TokenKind kind) {
@@ -631,7 +634,7 @@ void allocate_ident(Node** _node) {
     
     node->var   = new_lvar;
 
-    if (!env->parent) {
+    if (is_global_scope()) {
       debug_print("global %s\n", node->name);
       new_lvar->is_global = true;
     } else {
@@ -843,8 +846,10 @@ Node* ident_init() {
   debug_put("ident_init\n");
   Node *ident = ident_decl();
   // do not allocate if typedef
-  if (ident->type->is_typedef)
+  if (ident->type->is_typedef) {
+    add_typedef(ident->name, ident->type);
     return ident;
+  }
   allocate_ident(&ident);
   if (consume(TK_ASSIGN)) {
     Node *lvar = new_node(ND_IDENT, NULL, NULL);
@@ -852,8 +857,7 @@ Node* ident_init() {
     get_ident_info(&lvar);
     Node *init = expr();
     Node *assign = new_node(ND_VAR_INIT, lvar, init);
-    Node *node   = new_node(ND_LVAR_INIT, ident, assign);
-    return node;
+    return new_node(ND_LVAR_INIT, ident, assign);
   }
   return ident;
 }
@@ -862,11 +866,7 @@ Node* ident_init() {
 Node* ident_decl() {
   debug_put("ident_decl\n");
   if (is_type_or_storage()) {
-    Token *token = vector_get_front(vec_token);
-    debug_print("current token is %s\n", token->str);
     Type *type  = consume_decl_spec_ptr();
-    token = vector_get_front(vec_token);
-    debug_print("current token is %s\n", token->str);
     Node *ident = consume_ident();
 
     // ident is not null when variable is declared
@@ -885,13 +885,8 @@ Node* ident_decl() {
       type->size       = type->array_size * type->size;
       expect(TK_RBBRA);
     }
-    // typedef
-    if (type->is_typedef)
-      add_typedef(ident->name, type);
 
-    debug_print("size:%d\n", type->size);
     ident->type = type;
-    debug_put("alloc end\n");
     return ident;
   }
   return NULL;

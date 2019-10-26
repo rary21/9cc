@@ -121,6 +121,7 @@ typedef enum {
   ND_LVAR_DECL,   // local variable declaration
   ND_LVAR_INIT,   // local variable initialize
   ND_GVAR_DECL,   // global variable declaration
+  ND_GVAR_INIT,   // global variable initialize
   ND_ARG_DECL,    // function argument declaration
   ND_POSTINC,     // postfix increment
   ND_NONE,        // do nothing
