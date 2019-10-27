@@ -658,6 +658,16 @@ void get_ident_info(Node** _node) {
   debug_print("getidentinfo %p\n", lvar);
 }
 
+bool consume_number(int *val) {
+  Token *token = vector_get_front(vec_token);
+  if (token->kind != TK_NUM)
+    return false;
+  // next token
+  *val = token->val;
+  vector_pop_front(vec_token);
+  return true;
+}
+
 // go to next token and return value if current token is TK_NUM
 // otherwise, throw error and exit application
 int expect_number() {
@@ -665,9 +675,8 @@ int expect_number() {
   if (token->kind != TK_NUM)
     error("number expected, but got %s", TOKEN_KIND_STR[token->kind]);
   // next token
-  int value = token->val;
-  token = vector_pop_front(vec_token);
-  return value;
+  vector_pop_front(vec_token);
+  return token->val;
 }
 
 // return true if current token is kind
@@ -868,15 +877,25 @@ Node* ident_init() {
         add = new_node(ND_DEREF, add, NULL);
         Node *node = new_node(ND_VAR_INIT, add, expr());
         vector_push_back(init_list, node);
+        cnt++;
         if (!consume(TK_COMMA)) {
           expect(TK_RCBRA);
           break;
         }
-        cnt++;
       }
     } else {
       Node *node = new_node(ND_VAR_INIT, var, expr());
       vector_push_back(init_list, node);
+      cnt = 1;
+    }
+    if (ident->type->ty != ARRAY && cnt > 1)
+      warning("excess elements in scalar initializer");
+    if (ident->type->ty == ARRAY && cnt > ident->type->array_size)
+      warning("excess elements in scalar initializer");
+    // determine array size from initializer list
+    if (ident->type->ty == ARRAY && ident->type->array_size == 0) {
+      ident->type->array_size = cnt;
+      ident->type->size = ident->type->array_size * ident->type->ptr_to->size;
     }
     Node *node = new_node(ND_BLOCK, ident, NULL);
     node->block = init_list;
@@ -901,10 +920,12 @@ Node* ident_decl() {
       return new_node(ND_NONE, NULL, NULL);
     }
     if (consume(TK_LBBRA)) {
+      int array_size = 0;
       Type *deref_type = new_type(type->ty, type->ptr_to);
       type->ptr_to     = deref_type;
       type->ty         = ARRAY;
-      type->array_size = expect_number();
+      consume_number(&array_size);
+      type->array_size = array_size;
       type->size       = type->array_size * type->size;
       expect(TK_RBBRA);
     }

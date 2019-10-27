@@ -631,11 +631,19 @@ try 10 \
 " 
   int printf();
   int main () {
-    int a[10] = {1,2,3,4};
-    char b[10] = {1,2,3,4};
-    const char* str[3] = {\"abc\", \"def\", \"ghi\"};
+    int a[] = {1,2,3,4};
+    char b[] = {1,2,3,4};
+    const char* str[4] = {\"abc\", \"def\", \"ghi\"};
     printf(\"%s\n\", str[2]);
     return a[3]+b[0]+b[1]+b[2];
+  }
+"
+
+try 6 \
+" 
+  int main () {
+    int a[] = {1,2,3,4, 5};
+    return a[1] + a[3];
   }
 "
 echo OK
