@@ -6,9 +6,13 @@ Type *g_ret_type;
 Node* do_walk(Node* node, bool decay);
 
 bool is_32(Node *node) {
+  if (node->type->ty == ARRAY)
+    return false;
   return node->type->size == 4;
 }
 bool is_8(Node *node) {
+  if (node->type->ty == ARRAY)
+    return false;
   return node->type->size == 1;
 }
 bool is_int_type(Type *type) {
