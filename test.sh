@@ -646,4 +646,15 @@ try 6 \
     return a[1] + a[3];
   }
 "
+
+try 97 \
+" 
+int printf();
+const char *a[] = {\"abc\", \"def\"};
+int main () {
+  printf(\"%s\n\", a[1]);
+  char *b = a[0];
+  return b[0];
+}
+"
 echo OK

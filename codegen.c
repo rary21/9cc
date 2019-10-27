@@ -226,7 +226,32 @@ void gen(Node *node) {
       return;
     case ND_GVAR_DECL:
       alignment = 32; // TODO: compute best alignment
-      printf("  .comm %s,%d,%d\n", node->name, node->type->size, alignment);
+      printf("  .data\n");
+      if (node->init_list) {
+      printf("  .type %s,@object\n", node->name);
+      printf("  .size %s,%d\n", node->name, node->type->size);
+      printf("  .align %d\n", alignment);
+      if (node->type->is_const)
+        printf("  .section .rodata\n");
+      printf("%s:\n", node->name);
+        char* size = ".quad";
+        if (is_32_elem(node))
+          size = ".long";
+        else if (is_8_elem(node))
+          size = ".byte";
+        for (int i = 0; i < node->init_list->len; i++) {
+          Node *init = vector_get(node->init_list, i);
+          printf("  %s ", size);
+          if (init->kind == ND_NUM) {
+            printf("%d\n", init->val);
+          } else if (init->kind == ND_LITERAL) {
+            printf(".LC%d\n", init->literal_id);
+          }
+        }
+      } else {
+        printf("  .comm %s,%d,%d\n", node->name, node->type->size, alignment);
+      }
+      printf("  .text\n");
       return;
   }
 

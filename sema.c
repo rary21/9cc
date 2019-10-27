@@ -10,9 +10,19 @@ bool is_32(Node *node) {
     return false;
   return node->type->size == 4;
 }
+bool is_32_elem(Node *node) {
+  if (node->type->ty == ARRAY)
+    return node->type->ptr_to->size == 4;
+  return node->type->size == 4;
+}
 bool is_8(Node *node) {
   if (node->type->ty == ARRAY)
     return false;
+  return node->type->size == 1;
+}
+bool is_8_elem(Node *node) {
+  if (node->type->ty == ARRAY)
+    return node->type->ptr_to->size == 1;
   return node->type->size == 1;
 }
 bool is_int_type(Type *type) {

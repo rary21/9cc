@@ -192,6 +192,7 @@ struct Node {
   Node *expr;                  // used in postfix increment
   int locals_size;             // total size of local variables
   Vector *block;               // used to represent block of code
+  Vector *init_list;           // initialization list
   Node *args_call[MAX_ARGS+1]; // currently, support 6 arguments
   Node *args_def[MAX_ARGS+1];  // currently, support 6 arguments
   char label_s[256];           // label used in assembly
@@ -252,8 +253,12 @@ void *map_find(Map *map, const char* key);
 
 bool same_type(Type *t1, Type *t2);
 bool same_size(Node *n1, Node *n2);
+// return true if it is int
 bool is_32(Node *node);
+// return true if it is int or array of int
+bool is_32_elem(Node *node);
 bool is_8(Node *node);
+bool is_8_elem(Node *node);
 
 int roundup(int val, int align);
 

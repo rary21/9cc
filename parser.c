@@ -754,24 +754,25 @@ Node* top() {
   node = consume_ident();
   if (look_token(TK_LPARE, 0)) {   // function definition
     node = func_decl_def(node, type);
+    return node;
   } else if (type->is_typedef) {
     expect(TK_SEMICOLON);
     add_typedef(node->name, type);
     node->kind = ND_NONE;
+    return node;
   } else if (consume(TK_LBBRA)) {  // global array variable
+    int array_size = 0;
     node->kind       = ND_GVAR_DECL;
     Type *deref_type = new_type(type->ty, type->ptr_to);
     type->ptr_to     = deref_type;
     type->ty         = ARRAY;
-    type->array_size = expect_number();
+    consume_number(&array_size);
+    type->array_size = array_size;
     type->size       = type->array_size * type->size;
-    debug_print("arraysize %d\n", type->size);
     expect(TK_RBBRA);
-    expect(TK_SEMICOLON);
     node->type = type;
     allocate_ident(&node);
   } else if (node) {
-    expect(TK_SEMICOLON);
     node->kind       = ND_GVAR_DECL;
     node->type = type;
     allocate_ident(&node);
@@ -779,7 +780,39 @@ Node* top() {
     expect(TK_SEMICOLON);
     node = calloc(1, sizeof(Node));
     node->kind = ND_NONE;
+    return node;
   }
+
+  // global variable initialization
+  if (consume(TK_ASSIGN)) {
+    Vector *init_list = new_vector();
+    int cnt = 0;
+    if (consume(TK_LCBRA)) {
+      while (1) {
+        vector_push_back(init_list, primary());
+        cnt++;
+        if (!consume(TK_COMMA)) {
+          expect(TK_RCBRA);
+          break;
+        }
+      }
+    } else {
+      vector_push_back(init_list, primary());
+      cnt = 1;
+    }
+    if (node->type->ty != ARRAY && cnt > 1)
+      warning("excess elements in scalar initializer");
+    if (node->type->ty == ARRAY && node->type->array_size != 0 && cnt > node->type->array_size)
+      warning("excess elements in scalar initializer");
+    // determine array size from initializer list
+    if (node->type->ty == ARRAY && node->type->array_size == 0) {
+      node->type->array_size = cnt;
+      node->type->size = node->type->array_size * node->type->ptr_to->size;
+    }
+    node->init_list = init_list;
+  }
+
+  expect(TK_SEMICOLON);
 
   return node;
 }
@@ -890,7 +923,7 @@ Node* ident_init() {
     }
     if (ident->type->ty != ARRAY && cnt > 1)
       warning("excess elements in scalar initializer");
-    if (ident->type->ty == ARRAY && cnt > ident->type->array_size)
+    if (ident->type->ty == ARRAY && ident->type->array_size != 0 && cnt > ident->type->array_size)
       warning("excess elements in scalar initializer");
     // determine array size from initializer list
     if (ident->type->ty == ARRAY && ident->type->array_size == 0) {
