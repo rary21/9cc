@@ -191,7 +191,7 @@ struct Node {
   Node *body;                  // body of function
   Node *expr;                  // used in postfix increment
   int locals_size;             // total size of local variables
-  Vector *block;            // used to represent block of code
+  Vector *block;               // used to represent block of code
   Node *args_call[MAX_ARGS+1]; // currently, support 6 arguments
   Node *args_def[MAX_ARGS+1];  // currently, support 6 arguments
   char label_s[256];           // label used in assembly

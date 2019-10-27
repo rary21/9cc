@@ -626,4 +626,16 @@ try 4 \
     return type.ty;
   }
 "
+
+try 10 \
+" 
+  int printf();
+  int main () {
+    int a[10] = {1,2,3,4};
+    char b[10] = {1,2,3,4};
+    const char* str[3] = {\"abc\", \"def\", \"ghi\"};
+    printf(\"%s\n\", str[2]);
+    return a[3]+b[0]+b[1]+b[2];
+  }
+"
 echo OK

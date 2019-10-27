@@ -850,14 +850,37 @@ Node* ident_init() {
     add_typedef(ident->name, ident->type);
     return ident;
   }
+
   allocate_ident(&ident);
   if (consume(TK_ASSIGN)) {
-    Node *lvar = new_node(ND_IDENT, NULL, NULL);
-    lvar->name = ident->name;
-    get_ident_info(&lvar);
-    Node *init = expr();
-    Node *assign = new_node(ND_VAR_INIT, lvar, init);
-    return new_node(ND_LVAR_INIT, ident, assign);
+    Node *var = new_node(ND_IDENT, NULL, NULL);
+    var->name = ident->name;
+    get_ident_info(&var);
+
+    // init_list will be like this
+    // ND_LVAR_DECL, ND_VAR_INIT, ND_VAR_INIT...
+    Vector *init_list = new_vector();
+    vector_push_back(init_list, ident);
+    int cnt = 0;
+    if (consume(TK_LCBRA)) {
+      while (1) {
+        Node *add = new_node(ND_ADD, var, new_node_number(cnt));
+        add = new_node(ND_DEREF, add, NULL);
+        Node *node = new_node(ND_VAR_INIT, add, expr());
+        vector_push_back(init_list, node);
+        if (!consume(TK_COMMA)) {
+          expect(TK_RCBRA);
+          break;
+        }
+        cnt++;
+      }
+    } else {
+      Node *node = new_node(ND_VAR_INIT, var, expr());
+      vector_push_back(init_list, node);
+    }
+    Node *node = new_node(ND_BLOCK, ident, NULL);
+    node->block = init_list;
+    return node;
   }
   return ident;
 }
@@ -1156,7 +1179,8 @@ Node* primary() {
       error("no enum or variable found matching to name of %s", node->name);
     return node;
   } else {
-    error("unexpected token in primary");
+    Token *token = vector_get_front(vec_token);
+    error("unexpected token in primary : %s", TOKEN_KIND_STR[token->kind]);
   }
 }
 
